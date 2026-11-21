@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.Circle?>
+<StackPane stylesheets="@../css/estilos.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorCalibracionPosicion">
+ <children><VBox alignment="CENTER" spacing="18" maxWidth="660" styleClass="contenedor-principal"><children>
+   <Label text="Calibración de posición" styleClass="etiqueta-titulo" />
+   <Label text="Mantenga una posición estable frente al monitor hasta quedar dentro del rango." styleClass="etiqueta-subtitulo" textAlignment="CENTER" wrapText="true" />
+   <Label fx:id="lblObjetivo" text="Distancia objetivo: 1.0 m" styleClass="estado estado-evaluacion" />
+   <VBox alignment="CENTER" spacing="12" styleClass="semaforo"><children>
+      <Circle fx:id="luzRoja" radius="34" /><Circle fx:id="luzAmarilla" radius="34" /><Circle fx:id="luzVerde" radius="34" />
+   </children></VBox>
+   <Label fx:id="lblDistanciaActual" text="Sin medición" styleClass="lectura-distancia" />
+   <Label fx:id="lblIndicacion" text="Conectando con la cámara…" styleClass="mensaje-calibracion" textAlignment="CENTER" wrapText="true" />
+   <Label fx:id="lblEstadoCamara" text="" styleClass="etiqueta-subtitulo" textAlignment="CENTER" wrapText="true" />
+   <HBox alignment="CENTER" spacing="12"><children>
+     <Button text="Volver" onAction="#volver" styleClass="boton-secundario" />
+     <Button text="Reintentar cámara" onAction="#reintentar" styleClass="boton-secundario" />
+     <Button fx:id="btnContinuar" text="Iniciar tamizaje" onAction="#iniciarTamizaje" styleClass="boton-primario" />
+   </children></HBox>
+ </children><padding><Insets top="38" right="54" bottom="38" left="54" /></padding></VBox></children>
+</StackPane>

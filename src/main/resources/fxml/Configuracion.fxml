@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+
+<!-- El StackPane actúa como fondo a pantalla completa y carga el CSS -->
+<StackPane stylesheets="@../css/estilos.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorConfiguracion">
+    <children>
+        <!-- Tarjeta Central Mágica -->
+        <VBox alignment="CENTER" spacing="25.0" styleClass="contenedor-principal" maxWidth="800" maxHeight="-Infinity">
+            <children>
+                <HBox alignment="CENTER_LEFT" spacing="8"><Button text="← Regresar" onAction="#volver" styleClass="boton-secundario"/><Button text="Salir" onAction="#salirAplicacion" styleClass="boton-salir"/></HBox>
+
+                <!-- Título -->
+                <Label text="Configuración del entorno" styleClass="etiqueta-titulo" style="-fx-font-size: 38px;" />
+
+                <!-- Datos del Paciente (Se actualizará desde Java) -->
+                <Label fx:id="lblAlumno" text="Paciente: [Nombre]" style="-fx-text-fill: #164E59; -fx-font-size: 22px; -fx-font-weight: 700;" />
+
+                <Separator />
+
+                <!-- Configuración de Distancia (Slider) -->
+                <Label text="Distancia de evaluación (metros)" styleClass="etiqueta-instruccion" style="-fx-font-size: 22px; -fx-text-fill: #073B4C;" />
+                <Slider fx:id="sliderDistancia" max="4.0" min="0.5" value="1.0" majorTickUnit="0.5" minorTickCount="0" showTickLabels="true" showTickMarks="true" snapToTicks="true" maxWidth="500"/>
+                <Label fx:id="lblValorDistancia" text="Distancia seleccionada: 1.0 metros" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #118AB2;" />
+
+                <Separator />
+
+                <!-- Configuración de Pantalla (PPI) -->
+                <Label text="Densidad de pantalla (PPI)" styleClass="etiqueta-instruccion" style="-fx-font-size: 22px; -fx-text-fill: #073B4C;" />
+                <TextField fx:id="txtPPI" promptText="Ej. 96, 120" styleClass="campo-texto" maxWidth="200" alignment="CENTER">
+                    <tooltip>
+                        <Tooltip text="Detectado automáticamente. Modificar solo si usa un monitor externo no estándar." />
+                    </tooltip>
+                </TextField>
+                <Label fx:id="lblResolucion" text="Detectando resolución de pantalla…" styleClass="etiqueta-subtitulo" />
+
+                <Separator />
+
+                <!-- Calibración de cámara: solo personal técnico -->
+                <Label text="Focal calibrada de cámara (px, opcional)" styleClass="etiqueta-instruccion" style="-fx-font-size: 18px; -fx-text-fill: #073B4C;" />
+                <TextField fx:id="txtFocalCamara" promptText="Ej. 1420.50" styleClass="campo-texto" maxWidth="200" alignment="CENTER">
+                    <tooltip>
+                        <Tooltip text="Ingrese únicamente el valor obtenido mediante calibración de cámara. Sin este valor la distancia pupilar se reporta como N/D." />
+                    </tooltip>
+                </TextField>
+                <Label text="No use un valor estimado: una focal sin calibrar invalida la distancia pupilar." styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" maxWidth="540" />
+
+                <Separator />
+
+                <!-- Botón de Acción -->
+                <!-- Asignamos onAction para que ejecute directamente el método en Java -->
+                <Button fx:id="btnIniciarBienvenida" text="Guardar y verificar periféricos" styleClass="boton-primario" onAction="#guardarYContinuar" />
+
+            </children>
+            <padding>
+                <Insets bottom="50.0" left="50.0" right="50.0" top="50.0" />
+            </padding>
+        </VBox>
+    </children>
+</StackPane>

@@ -1,1 +1,9 @@
 .env
+
+# Compilación y empaquetado (se regeneran con Maven / EMPAQUETAR_EYESOFTER.ps1)
+target/
+dist/
+release/
+tmp/
+.idea/
+expedientes_pdf/

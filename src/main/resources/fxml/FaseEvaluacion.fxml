@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+<VBox alignment="CENTER" spacing="30" stylesheets="@../css/estilos.css" styleClass="pantalla-fase" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorFaseEvaluacion">
+    <children>
+        <Label fx:id="lblPrueba" styleClass="fase-prueba" />
+        <Label fx:id="lblOjo" styleClass="fase-ojo" wrapText="true" textAlignment="CENTER" />
+        <Label fx:id="lblInstruccion" styleClass="fase-instruccion" wrapText="true" textAlignment="CENTER" maxWidth="850" />
+        <Button text="Estoy listo/a - comenzar" onAction="#comenzar" styleClass="boton-fase" />
+        <Button text="Cancelar prueba" onAction="#cancelarPrueba" styleClass="boton-secundario" />
+    </children>
+    <padding><Insets top="60" right="60" bottom="60" left="60" /></padding>
+</VBox>

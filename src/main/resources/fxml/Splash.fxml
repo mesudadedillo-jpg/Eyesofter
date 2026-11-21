@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<StackPane stylesheets="@../css/estilos.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorSplash">
+    <children>
+        <VBox alignment="CENTER" spacing="16" styleClass="contenedor-principal splash-card" maxWidth="560">
+            <children>
+                <ImageView fitWidth="300" fitHeight="176" preserveRatio="true" smooth="true" styleClass="logo-principal"><image><Image url="@../img/eye-logo.png" /></image></ImageView>
+                <Label text="EYESOFTER" styleClass="etiqueta-titulo marca" />
+                <Label text="Sistema de apoyo para tamizaje visual" styleClass="etiqueta-subtitulo" />
+                <ProgressBar fx:id="barraProgreso" progress="0" prefWidth="360" styleClass="barra-progreso" />
+                <Label fx:id="lblEstado" text="Inicializando servicios locales…" styleClass="etiqueta-subtitulo" wrapText="true" />
+            </children>
+            <padding><Insets top="56" right="56" bottom="56" left="56" /></padding>
+        </VBox>
+    </children>
+</StackPane>

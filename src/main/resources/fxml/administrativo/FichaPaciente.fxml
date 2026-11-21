@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<VBox spacing="18" styleClass="pagina-admin" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorFichaPaciente">
+    <padding>
+        <Insets top="24" right="32" bottom="30" left="32"/>
+    </padding>
+    <children>
+        <Button text="← Volver al directorio" onAction="#volver" styleClass="boton-enlace"/>
+        <HBox spacing="20" VBox.vgrow="ALWAYS">
+            <VBox prefWidth="320" spacing="14" styleClass="tarjeta-admin">
+                <Label text="◯" styleClass="icono-exito"/>
+                <Label fx:id="lblNombre" text="Paciente" styleClass="titulo-admin"/>
+                <Label fx:id="lblFolio" text="P-0000" styleClass="etiqueta-subtitulo"/>
+                <Label text="Datos de contacto" styleClass="subtitulo-seccion"/>
+                <Label text="Grado / grupo" styleClass="etiqueta-kpi"/>
+                <Label fx:id="lblGrado"/>
+                <Label text="Responsable" styleClass="etiqueta-kpi"/>
+                <Label fx:id="lblTutor"/>
+                <Label text="Teléfono" styleClass="etiqueta-kpi"/>
+                <Label fx:id="lblTelefono"/>
+                <Label text="Correo" styleClass="etiqueta-kpi"/>
+                <Label fx:id="lblCorreo"/>
+                <Label fx:id="lblCitas" styleClass="etiqueta-subtitulo"/>
+                <!-- CORREGIDO: Se agregó el símbolo # -->
+                <Button text="Nueva evaluación" onAction="#nuevoTamizaje" styleClass="boton-primario" maxWidth="Infinity"/>
+                <Button text="Agendar cita" onAction="#agendarCita" styleClass="boton-secundario" maxWidth="Infinity"/>
+            </VBox>
+            <VBox spacing="16" HBox.hgrow="ALWAYS">
+                <VBox spacing="12" styleClass="tarjeta-admin" VBox.vgrow="ALWAYS">
+                    <HBox>
+                        <Label text="Historial de evaluaciones" styleClass="subtitulo-seccion"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button text="Generar PDF de seleccionada" onAction="#generarPdf" styleClass="boton-secundario"/>
+                    </HBox>
+                    <TableView fx:id="tablaEvaluaciones" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="colFecha" text="FECHA" prefWidth="160"/>
+                            <TableColumn fx:id="colAgudeza" text="AGUDEZA VISUAL" prefWidth="210"/>
+                            <TableColumn fx:id="colIshihara" text="ISHIHARA" prefWidth="190"/>
+                            <TableColumn fx:id="colOrientacion" text="ORIENTACIÓN" prefWidth="250"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </VBox>
+        </HBox>
+    </children>
+</VBox>

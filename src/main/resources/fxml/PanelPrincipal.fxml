@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<StackPane stylesheets="@../css/estilos.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorPanelPrincipal">
+    <children>
+        <VBox maxWidth="1180" spacing="24" styleClass="pagina-clinica">
+            <children>
+                <HBox alignment="CENTER_LEFT" styleClass="barra-encabezado">
+                    <children>
+                        <VBox spacing="4" HBox.hgrow="ALWAYS"><children>
+                            <Label text="EYESOFTER" styleClass="marca" />
+                            <Label text="Panel de control para el personal operador" styleClass="etiqueta-subtitulo" />
+                        </children></VBox>
+                        <VBox alignment="CENTER_RIGHT" spacing="4"><children>
+                            <Label fx:id="lblFecha" styleClass="etiqueta-subtitulo" />
+                            <Button text="Cerrar sesión" onAction="#cerrarSesion" styleClass="boton-enlace" />
+                        </children></VBox>
+                    </children>
+                </HBox>
+                <VBox spacing="6"><children>
+                    <Label text="Resumen del día" styleClass="etiqueta-titulo" />
+                    <Label text="Administre pacientes, evaluaciones y recursos del equipo desde un solo lugar." styleClass="etiqueta-subtitulo" />
+                </children></VBox>
+                <HBox spacing="16"><children>
+                    <VBox styleClass="tarjeta-kpi" HBox.hgrow="ALWAYS"><children><Label text="PACIENTES REGISTRADOS" styleClass="etiqueta-kpi"/><Label fx:id="lblTotalPacientes" text="0" styleClass="valor-kpi"/></children></VBox>
+                    <VBox styleClass="tarjeta-kpi" HBox.hgrow="ALWAYS"><children><Label text="EVALUACIONES" styleClass="etiqueta-kpi"/><Label fx:id="lblTotalEvaluaciones" text="0" styleClass="valor-kpi"/></children></VBox>
+                    <VBox styleClass="tarjeta-kpi" HBox.hgrow="ALWAYS"><children><Label text="EN ESPERA" styleClass="etiqueta-kpi"/><Label fx:id="lblPendientes" text="0" styleClass="valor-kpi"/></children></VBox>
+                </children></HBox>
+                <GridPane hgap="20" vgap="20">
+                    <columnConstraints><ColumnConstraints percentWidth="50" /><ColumnConstraints percentWidth="50" /></columnConstraints>
+                    <children>
+                        <VBox GridPane.columnIndex="0" GridPane.rowIndex="0" spacing="14" styleClass="tarjeta-accion"><children>
+                            <Label text="Pacientes y misión visual" styleClass="subtitulo-seccion" />
+                            <Label text="Registre o seleccione a la persona paciente antes de iniciar una evaluación de tamizaje." styleClass="etiqueta-subtitulo" wrapText="true" />
+                            <Button text="Registrar paciente" onAction="#iniciarNuevaSesion" styleClass="boton-primario" />
+                        </children></VBox>
+                        <VBox GridPane.columnIndex="1" GridPane.rowIndex="0" spacing="14" styleClass="tarjeta-accion"><children>
+                            <Label text="Evaluaciones e historial" styleClass="subtitulo-seccion" />
+                            <Label text="Consulte resultados locales, recomendaciones de seguimiento y expedientes PDF." styleClass="etiqueta-subtitulo" wrapText="true" />
+                            <Button text="Consultar evaluaciones" onAction="#consultarExpedientes" styleClass="boton-secundario" />
+                        </children></VBox>
+                        <VBox GridPane.columnIndex="0" GridPane.rowIndex="1" spacing="14" styleClass="tarjeta-accion"><children>
+                            <Label text="Configuración del entorno" styleClass="subtitulo-seccion" />
+                            <Label text="Ajuste distancia de trabajo y densidad de pantalla del equipo." styleClass="etiqueta-subtitulo" wrapText="true" />
+                            <Button text="Abrir configuración" onAction="#abrirAjustes" styleClass="boton-secundario" />
+                        </children></VBox>
+                        <VBox GridPane.columnIndex="1" GridPane.rowIndex="1" spacing="14" styleClass="tarjeta-accion"><children>
+                            <Label text="Periféricos" styleClass="subtitulo-seccion" />
+                            <Label text="Compruebe cámara y micrófono antes de una sesión supervisada." styleClass="etiqueta-subtitulo" wrapText="true" />
+                            <Button text="Verificar dispositivos" onAction="#verificarPerifericos" styleClass="boton-acento" />
+                        </children></VBox>
+                    </children>
+                </GridPane>
+            </children>
+            <padding><Insets top="36" right="48" bottom="48" left="48" /></padding>
+        </VBox>
+    </children>
+</StackPane>

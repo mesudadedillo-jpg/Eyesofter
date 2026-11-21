@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<BorderPane stylesheets="@../css/estilos.css" styleClass="pantalla-perifericos" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorVerificacionPerifericos">
+ <top><VBox spacing="6" styleClass="encabezado-perifericos"><Label text="Verificación de periféricos" styleClass="titulo-perifericos"/><Label text="Compruebe cámara y micrófono antes de iniciar. Puede continuar aunque un dispositivo no esté disponible." styleClass="subtitulo-perifericos" wrapText="true"/></VBox></top>
+ <center><VBox spacing="18" styleClass="contenido-perifericos"><HBox alignment="CENTER_LEFT" spacing="12" styleClass="barra-acciones-perifericos"><Label text="Estado de los dispositivos" styleClass="subtitulo-seccion" HBox.hgrow="ALWAYS"/><Button fx:id="btnVerificar" text="↻ Verificar dispositivos" onAction="#verificarHardware" defaultButton="true" styleClass="boton-primario"/></HBox><GridPane hgap="18" vgap="18" VBox.vgrow="ALWAYS"><columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints><children>
+  <VBox GridPane.columnIndex="0" spacing="16" styleClass="tarjeta-periferico" VBox.vgrow="ALWAYS"><HBox alignment="CENTER_LEFT"><Label text="Cámara" styleClass="titulo-tarjeta-periferico" HBox.hgrow="ALWAYS"/><Label fx:id="lblEstadoCamara" text="Pendiente" styleClass="estado estado-evaluacion"/></HBox><Label text="Dispositivo de entrada" styleClass="detalle-periferico"/><ComboBox fx:id="cmbCamaras" promptText="Detectando cámaras…" onAction="#seleccionarCamara" maxWidth="Infinity" styleClass="campo-texto"/><VBox alignment="CENTER" spacing="10" styleClass="vista-camara-perifericos" VBox.vgrow="ALWAYS"><Label text="◉" styleClass="icono-periferico"/><Label text="La vista de cámara se activa durante&#10;el ajuste de posición." styleClass="texto-camara-perifericos" textAlignment="CENTER"/></VBox><Label fx:id="lblDetalleCamara" text="Pulse Verificar dispositivos para comprobar la cámara." styleClass="detalle-periferico" wrapText="true"/><Button fx:id="btnPermisoCamara" text="Abrir permisos de cámara" onAction="#solicitarPermisoCamara" styleClass="boton-secundario" maxWidth="Infinity"/></VBox>
+  <VBox GridPane.columnIndex="1" spacing="16" styleClass="tarjeta-periferico" VBox.vgrow="ALWAYS"><HBox alignment="CENTER_LEFT"><Label text="Micrófono" styleClass="titulo-tarjeta-periferico" HBox.hgrow="ALWAYS"/><Label fx:id="lblEstadoMicrofono" text="Pendiente" styleClass="estado estado-evaluacion"/></HBox><Label text="Dispositivo de entrada" styleClass="detalle-periferico"/><ComboBox fx:id="cmbMicrofonos" promptText="Seleccionar micrófono" onAction="#seleccionarMicrofono" maxWidth="Infinity" styleClass="campo-texto"/><ProgressBar fx:id="barraNivelAudio" progress="0" maxWidth="Infinity" styleClass="barra-progreso"/><Label fx:id="lblNivelAudio" text="Pulse Verificar dispositivos para comprobar el micrófono." styleClass="detalle-periferico" wrapText="true" VBox.vgrow="ALWAYS"/><Button fx:id="btnPermisoMicrofono" text="Abrir permisos de micrófono" onAction="#solicitarPermisoMicrofono" styleClass="boton-secundario" maxWidth="Infinity"/></VBox>
+ </children></GridPane></VBox></center>
+ <bottom><HBox alignment="CENTER_RIGHT" spacing="12" styleClass="pie-perifericos"><Button fx:id="btnVolver" text="← Volver al panel" onAction="#volver" styleClass="boton-secundario"/><Button fx:id="btnContinuar" text="Continuar con la sesión →" onAction="#continuar" styleClass="boton-primario"/></HBox></bottom>
+ <padding><Insets top="28" right="42" bottom="28" left="42"/></padding>
+</BorderPane>

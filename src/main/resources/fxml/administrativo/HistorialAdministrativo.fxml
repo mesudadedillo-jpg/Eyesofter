@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<BorderPane styleClass="pagina-evaluaciones" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorHistorialAdministrativo">
+ <top><VBox spacing="14" styleClass="encabezado-evaluaciones"><VBox spacing="3"><Label text="Evaluaciones visuales" styleClass="titulo-admin"/><Label text="Localice a un paciente, selecciónelo y consulte sus resultados guardados." styleClass="subtitulo-admin"/></VBox><VBox spacing="9" styleClass="tarjeta-busqueda-evaluaciones"><Label text="BUSCAR PACIENTE" styleClass="etiqueta-kpi"/><HBox spacing="10"><TextField fx:id="txtBuscar" promptText="CURP, nombre o grupo" styleClass="campo-texto" HBox.hgrow="ALWAYS"/><Button text="Limpiar" onAction="#limpiar" styleClass="boton-secundario"/></HBox><HBox spacing="8"><TextField fx:id="txtFiltroCurp" promptText="CURP" styleClass="campo-texto" HBox.hgrow="ALWAYS"/><TextField fx:id="txtFiltroNombre" promptText="Paciente" styleClass="campo-texto" HBox.hgrow="ALWAYS"/><TextField fx:id="txtFiltroGrado" promptText="Grado / grupo" styleClass="campo-texto" HBox.hgrow="ALWAYS"/></HBox><Label fx:id="lblAyuda" text="Escriba para buscar un paciente." styleClass="etiqueta-subtitulo"/><ListView fx:id="listaCoincidencias" prefHeight="108"/></VBox></VBox></top>
+ <center><VBox spacing="12" styleClass="contenido-evaluaciones"><HBox fx:id="panelSeleccion" alignment="CENTER_LEFT" spacing="12" styleClass="seleccion-evaluaciones"><Label text="Paciente seleccionado:" styleClass="etiqueta-kpi"/><Label fx:id="lblSeleccion" text="" styleClass="etiqueta-instruccion" HBox.hgrow="ALWAYS"/><Button text="Cambiar" onAction="#limpiar" styleClass="boton-secundario"/></HBox><VBox fx:id="panelHistorial" spacing="10" styleClass="tarjeta-resultados-evaluaciones" VBox.vgrow="ALWAYS"><HBox alignment="CENTER_LEFT"><VBox HBox.hgrow="ALWAYS"><Label text="Historial de evaluaciones" styleClass="subtitulo-seccion"/><Label fx:id="lblRegistros" text="0 registros encontrados" styleClass="etiqueta-subtitulo"/></VBox><Button text="Generar PDF de seleccionada" onAction="#generarPdf" styleClass="boton-primario"/></HBox><TableView fx:id="tabla" VBox.vgrow="ALWAYS"><columns><TableColumn fx:id="colFolio" text="FOLIO" prefWidth="95"/><TableColumn fx:id="colFecha" text="FECHA" prefWidth="160"/><TableColumn fx:id="colSnellen" text="AGUDEZA VISUAL" prefWidth="230"/><TableColumn fx:id="colIshihara" text="ISHIHARA" prefWidth="170"/><TableColumn fx:id="colEstado" text="ORIENTACIÓN" prefWidth="300"/></columns></TableView></VBox></VBox></center>
+ <padding><Insets top="24" right="32" bottom="28" left="32"/></padding>
+</BorderPane>

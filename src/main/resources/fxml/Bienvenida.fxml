@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<!-- El StackPane actúa como fondo a pantalla completa y carga el CSS -->
+<StackPane stylesheets="@../css/estilos.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorBienvenidaPaciente">
+    <children>
+        <!-- Este VBox es la "Tarjeta Mágica" flotante. maxWidth evita que se estire feo en monitores grandes -->
+        <VBox alignment="CENTER" spacing="25.0" styleClass="contenedor-principal" maxWidth="850" maxHeight="-Infinity">
+            <children>
+
+                <!-- Título principal -->
+                <Label text="Bienvenida" styleClass="etiqueta-titulo" />
+
+                <!-- Nombre del alumno (se actualiza desde Java) -->
+                <!-- Le ponemos un naranja vibrante solo a su nombre para que resalte -->
+                <Label fx:id="lblNombreAlumno" text="[Paciente]" styleClass="etiqueta-titulo" style="-fx-font-size: 38px; -fx-text-fill: #164E59;" />
+
+                <!-- Instrucción 1 -->
+                <Label text="Realizaremos un tamizaje visual breve y supervisado." styleClass="etiqueta-instruccion">
+                    <VBox.margin>
+                        <Insets top="10.0" />
+                    </VBox.margin>
+                </Label>
+
+                <!-- Instrucción 2 -->
+                <!-- Le ponemos bold y azul para que sepa exactamente qué tiene que hacer -->
+                <Label fx:id="lblInstruccion" text="Cuando esté listo, diga &quot;SÍ&quot; para comenzar." styleClass="etiqueta-instruccion" style="-fx-font-weight: 900; -fx-text-fill: #118AB2;">
+                    <VBox.margin>
+                        <Insets top="20.0" bottom="30.0" />
+                    </VBox.margin>
+                </Label>
+
+                <!-- Etiqueta del micrófono animado -->
+                <!-- No le ponemos clases aquí porque el CSS ya lo atrapa por su fx:id="lblEstadoMic" -->
+                <Label fx:id="lblEstadoMic" text="Preparando reconocimiento de voz…" />
+                <Button fx:id="btnContinuarManual" text="Continuar con supervisión" onAction="#iniciarEvaluacionManual" styleClass="boton-secundario" />
+
+            </children>
+            <padding>
+                <Insets bottom="60.0" left="60.0" right="60.0" top="60.0" />
+            </padding>
+        </VBox>
+    </children>
+</StackPane>

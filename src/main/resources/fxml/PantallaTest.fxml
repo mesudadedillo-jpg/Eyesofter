@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.geometry.Pos?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<!--
+  Vista de respaldo de la pantalla de preparación heredada. El flujo clínico
+  actual crea la sesión desde ControladorPantallaTest, que recibe el paciente y
+  el Stage por constructor; por ello esta vista no declara fx:controller.
+-->
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
+    <center>
+        <StackPane style="-fx-background-color: #F4F7F6;">
+            <children>
+                <VBox alignment="CENTER" maxWidth="800" spacing="22" styleClass="contenedor-principal">
+                    <padding><Insets top="48" right="52" bottom="48" left="52" /></padding>
+                    <children>
+                        <Label text="Preparación de evaluación" styleClass="etiqueta-titulo" />
+                        <Label text="Verifique que la persona evaluada permanezca frente al monitor." styleClass="etiqueta-instruccion" wrapText="true" />
+                        <VBox spacing="8" maxWidth="400">
+                            <children>
+                                <Label text="Distancia focal (metros)" style="-fx-font-size: 18px; -fx-font-weight: bold;" />
+                                <Slider min="0.5" max="4.0" value="1.0" majorTickUnit="0.5" minorTickCount="0" showTickLabels="true" showTickMarks="true" snapToTicks="true" />
+                            </children>
+                        </VBox>
+                        <Label text="Esperando la validación de cámara y micrófono…" styleClass="etiqueta-subtitulo" wrapText="true" />
+                        <HBox alignment="CENTER" spacing="12">
+                            <children>
+                                <Button text="Cancelar" styleClass="boton-secundario" />
+                                <Button text="Estoy listo (iniciar examen)" disable="true" styleClass="boton-primario" />
+                            </children>
+                        </HBox>
+                    </children>
+                </VBox>
+            </children>
+        </StackPane>
+    </center>
+</BorderPane>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<StackPane stylesheets="@../css/estilos.css" styleClass="pantalla-contraste" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorSnellen">
+ <children><VBox spacing="20" styleClass="prueba-clinica"><children>
+   <HBox alignment="CENTER_LEFT" spacing="10"><children><VBox spacing="5" HBox.hgrow="ALWAYS"><children><Label fx:id="lblLinea" text="Línea 1 de 8" styleClass="etiqueta-subtitulo" /><ProgressBar fx:id="barraProgreso" prefWidth="240" progress="0" styleClass="barra-progreso" /></children></VBox><Button text="Pausar prueba" onAction="#pausarPrueba" styleClass="boton-secundario"/><Button text="Cancelar prueba" onAction="#cancelarPrueba" styleClass="boton-secundario"/><Label fx:id="lblEstado" text="Preparando evaluación…" styleClass="estado estado-evaluacion" /></children></HBox>
+   <VBox spacing="7" alignment="CENTER"><children><Label fx:id="lblAlerta" visible="false" managed="false" textAlignment="CENTER" wrapText="true" maxWidth="850" styleClass="estado texto-alerta"/><HBox fx:id="controlesAlerta" visible="false" managed="false" alignment="CENTER" spacing="8"><children><Button text="A−" onAction="#reducirAlerta" styleClass="boton-secundario"/><Button text="A+" onAction="#ampliarAlerta" styleClass="boton-secundario"/><Button text="Reanudar" onAction="#reanudarPrueba" styleClass="boton-primario"/></children></HBox></children></VBox>
+   <VBox alignment="CENTER" VBox.vgrow="ALWAYS" spacing="32"><children>
+     <Label text="Tamizaje de agudeza visual" styleClass="etiqueta-subtitulo" />
+     <HBox fx:id="contenedorOptotipos" alignment="CENTER" spacing="54" />
+     <Label text="Indique las letras de izquierda a derecha." styleClass="etiqueta-subtitulo" />
+   </children></VBox>
+   <VBox fx:id="panelRespaldo" spacing="9" styleClass="registro-respaldo"><children>
+     <Label text="Registro manual de respaldo para personal operador" styleClass="etiqueta-subtitulo" />
+     <HBox spacing="10"><children><TextField fx:id="txtRespuestaManual" promptText="Ejemplo: EFP" onAction="#registrarRespuestaManual" styleClass="campo-texto" HBox.hgrow="ALWAYS" /><Button fx:id="btnRegistrar" text="Registrar" onAction="#registrarRespuestaManual" styleClass="boton-secundario" /><Button fx:id="btnEscuchar" text="Capturar por voz" onAction="#capturarPorVoz" styleClass="boton-primario" /></children></HBox>
+   </children></VBox>
+ </children><padding><Insets top="28" right="42" bottom="32" left="42" /></padding></VBox></children>
+</StackPane>

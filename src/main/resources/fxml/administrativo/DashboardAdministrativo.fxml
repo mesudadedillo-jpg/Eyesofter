@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<VBox spacing="16" styleClass="pagina-admin" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorDashboardAdministrativo">
+    <padding>
+        <Insets top="20" right="22" bottom="12" left="22"/>
+    </padding>
+    <children>
+        <HBox spacing="14">
+            <VBox HBox.hgrow="ALWAYS" styleClass="tarjeta-admin tarjeta-kpi-dashboard">
+                <Label text="PACIENTES HOY" styleClass="etiqueta-kpi"/>
+                <Label fx:id="lblPacientes" text="0" styleClass="valor-kpi"/>
+                <Label text="Citas del día" styleClass="etiqueta-subtitulo"/>
+            </VBox>
+            <VBox HBox.hgrow="ALWAYS" styleClass="tarjeta-admin tarjeta-kpi-dashboard">
+                <Label text="EVALUACIONES" styleClass="etiqueta-kpi"/>
+                <Label fx:id="lblEvaluaciones" text="0" styleClass="valor-kpi"/>
+                <Label text="Total registrado" styleClass="etiqueta-subtitulo"/>
+            </VBox>
+            <VBox HBox.hgrow="ALWAYS" styleClass="tarjeta-admin tarjeta-kpi-dashboard">
+                <Label text="EN ESPERA" styleClass="etiqueta-kpi"/>
+                <Label fx:id="lblEspera" text="0" styleClass="valor-kpi"/>
+                <Label text="Citas pendientes" styleClass="etiqueta-subtitulo"/>
+            </VBox>
+            <VBox HBox.hgrow="ALWAYS" styleClass="tarjeta-admin tarjeta-kpi-dashboard">
+                <Label text="CASOS ESPECIALES" styleClass="etiqueta-kpi"/>
+                <Label fx:id="lblEspeciales" text="0" styleClass="valor-kpi"/>
+                <Label text="Urgencias del día" styleClass="etiqueta-subtitulo"/>
+            </VBox>
+        </HBox>
+        <HBox spacing="16" VBox.vgrow="ALWAYS">
+            <VBox spacing="10" styleClass="tarjeta-admin" HBox.hgrow="ALWAYS">
+                <HBox alignment="CENTER_LEFT">
+                    <Label text="Cola de Pacientes" styleClass="subtitulo-seccion"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button text="Todos" onAction="#mostrarTodos" styleClass="boton-filtro"/>
+                    <Button text="En espera" onAction="#mostrarEspera" styleClass="boton-filtro"/>
+                    <Button text="En evaluación" onAction="#mostrarEvaluacion" styleClass="boton-filtro"/>
+                    <Button text="Completado" onAction="#mostrarCompletados" styleClass="boton-filtro"/>
+                </HBox>
+                <TableView fx:id="tablaCola" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="colPaciente" text="PACIENTE" prefWidth="210"/>
+                        <TableColumn fx:id="colMotivo" text="MOTIVO" prefWidth="165"/>
+                        <TableColumn fx:id="colHora" text="AGENDADO" prefWidth="95"/>
+                        <TableColumn fx:id="colEspera" text="ESPERA" prefWidth="100"/>
+                        <TableColumn fx:id="colEstado" text="ESTADO" prefWidth="110"/>
+                    </columns>
+                </TableView>
+                <HBox alignment="CENTER_RIGHT" spacing="10">
+                    <Button fx:id="btnIniciarSeleccion" text="Iniciar seleccionada" onAction="#iniciarSeleccion" styleClass="boton-primario"/>
+                </HBox>
+            </VBox>
+            <VBox prefWidth="260" spacing="10" styleClass="tarjeta-admin">
+                <HBox>
+                    <Label text="Agenda del Día" styleClass="subtitulo-seccion"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="lblFechaAgenda" styleClass="etiqueta-subtitulo"/>
+                </HBox>
+                <Label fx:id="lblSinAgenda" text="No hay citas programadas. Agéndalas desde la ficha del paciente." wrapText="true" styleClass="etiqueta-subtitulo"/>
+                <TableView fx:id="tablaAgenda" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="agendaHora" text="HORA" prefWidth="58"/>
+                        <TableColumn fx:id="agendaPaciente" text="PACIENTE" prefWidth="115"/>
+                        <TableColumn fx:id="agendaTipo" text="TIPO" prefWidth="80"/>
+                    </columns>
+                </TableView>
+                <!-- CORREGIDO: Se cambió #nuevaMision por #nuevoTamizaje -->
+                <Button text="Nueva evaluación" onAction="#nuevoTamizaje" styleClass="boton-primario" maxWidth="Infinity"/>
+            </VBox>
+        </HBox>
+    </children>
+</VBox>

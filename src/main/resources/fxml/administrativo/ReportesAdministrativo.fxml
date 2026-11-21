@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<VBox spacing="15" styleClass="pagina-admin" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorReportesAdministrativo"><padding><Insets top="24" right="30" bottom="26" left="30"/></padding><children>
+ <HBox alignment="CENTER_LEFT"><VBox spacing="3"><Label text="Reportes y Estadísticas" styleClass="titulo-admin"/><Label text="Métricas calculadas a partir de la información local registrada." styleClass="subtitulo-admin"/></VBox><Region HBox.hgrow="ALWAYS"/><Label text="Periodo:" styleClass="etiqueta-subtitulo"/><ComboBox fx:id="cmbPeriodo" prefWidth="150"/><DatePicker fx:id="dpInicio"/><DatePicker fx:id="dpFin"/></HBox>
+ <HBox spacing="14"><VBox HBox.hgrow="ALWAYS" styleClass="tarjeta-admin"><Label text="EVALUACIONES" styleClass="etiqueta-kpi"/><Label fx:id="lblEvaluaciones" text="0" styleClass="valor-kpi"/><Label text="realizadas en el periodo" styleClass="etiqueta-subtitulo"/></VBox><VBox HBox.hgrow="ALWAYS" styleClass="tarjeta-admin"><Label text="ATENDIDOS" styleClass="etiqueta-kpi"/><Label fx:id="lblAtendidos" text="0" styleClass="valor-kpi"/><Label text="pacientes únicos" styleClass="etiqueta-subtitulo"/></VBox><VBox HBox.hgrow="ALWAYS" styleClass="tarjeta-admin"><Label text="CANCELADOS" styleClass="etiqueta-kpi"/><Label fx:id="lblCancelados" text="0" styleClass="valor-kpi"/><Label text="sin registro disponible" styleClass="etiqueta-subtitulo"/></VBox><VBox HBox.hgrow="ALWAYS" styleClass="tarjeta-admin"><Label text="EN ESPERA" styleClass="etiqueta-kpi"/><Label fx:id="lblEspera" text="0" styleClass="valor-kpi"/><Label text="citas del día" styleClass="etiqueta-subtitulo"/></VBox></HBox>
+ <VBox spacing="9" styleClass="tarjeta-admin" VBox.vgrow="ALWAYS"><HBox><Label text="Evaluaciones del Período" styleClass="subtitulo-seccion"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblRegistros" text="0 registros" styleClass="etiqueta-subtitulo"/></HBox><Label fx:id="lblSinDatos" text="No hay evaluaciones en el periodo seleccionado." styleClass="etiqueta-subtitulo"/><TableView fx:id="tabla" VBox.vgrow="ALWAYS"><columns><TableColumn fx:id="colFolio" text="ID" prefWidth="80"/><TableColumn fx:id="colPaciente" text="PACIENTE" prefWidth="170"/><TableColumn fx:id="colFecha" text="FECHA" prefWidth="150"/><TableColumn fx:id="colOD" text="AGUDEZA OD" prefWidth="110"/><TableColumn fx:id="colOI" text="AGUDEZA OI" prefWidth="110"/><TableColumn fx:id="colIshihara" text="ISHIHARA" prefWidth="145"/><TableColumn fx:id="colResultado" text="RESULTADO" prefWidth="210"/></columns></TableView></VBox>
+ <VBox spacing="8" styleClass="tarjeta-admin"><HBox alignment="CENTER_LEFT"><Label text="◈ Expedientes PDF" styleClass="subtitulo-seccion" HBox.hgrow="ALWAYS"/><Button text="Ver descargados" onAction="#abrirDescargados" styleClass="boton-primario"/><Button text="Ver seleccionado" onAction="#abrirPdf" styleClass="boton-secundario"/></HBox><Label text="Doble clic en un archivo para abrir la vista previa interna." styleClass="etiqueta-subtitulo"/><ListView fx:id="listaPdfs" prefHeight="130"/></VBox>
+</children></VBox>
