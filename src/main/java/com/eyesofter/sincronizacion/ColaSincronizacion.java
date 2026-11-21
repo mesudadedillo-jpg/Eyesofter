@@ -205,7 +205,7 @@ public final class ColaSincronizacion {
     }
 
     private static synchronized void procesar() {
-        if (!ClienteSuite.estaConfigurado()) { ultimoResultado = "Conexión con el portal sin configurar."; return; }
+        if (!ClienteSuite.estaConfigurado()) { ultimoResultado = "Este equipo aún no está vinculado con el portal."; return; }
         long ahora = System.currentTimeMillis();
         List<String[]> pendientes = new ArrayList<>();
         try (Connection c = GestorBaseDatos.abrirConexion();
@@ -252,7 +252,7 @@ public final class ColaSincronizacion {
             ultimoResultado = motivo;
         } else {
             long espera = Math.min(ESPERA_MAXIMA_MS, ESPERA_BASE_MS << Math.min(10, intentos - 1));
-            String motivo = r.codigo() == 401 ? "La clave del escritorio no es válida."
+            String motivo = r.codigo() == 401 ? "El equipo no está vinculado o su vinculación ya no es válida. Vincúlelo de nuevo en Configuración."
                     : r.codigo() == 503 ? "El servidor no tiene habilitada la recepción del escritorio."
                     : r.codigo() == 0 ? r.cuerpo() : "El servidor respondió " + r.codigo() + ".";
             marcar(folio, Estado.PENDIENTE, intentos, System.currentTimeMillis() + espera, motivo, null);
