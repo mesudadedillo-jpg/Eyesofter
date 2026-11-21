@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.VBox?>
+<ScrollPane fitToWidth="true" styleClass="pagina-scroll" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorHerramientas">
+    <content>
+        <VBox fx:id="contenido" spacing="18" styleClass="pagina-admin">
+            <padding><Insets top="20" right="22" bottom="22" left="22"/></padding>
+        </VBox>
+    </content>
+</ScrollPane>

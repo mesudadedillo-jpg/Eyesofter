@@ -35,11 +35,14 @@
 
                 <!-- Configuración de Pantalla (PPI) -->
                 <Label text="Densidad de pantalla (PPI)" styleClass="etiqueta-instruccion" style="-fx-font-size: 22px; -fx-text-fill: #073B4C;" />
-                <TextField fx:id="txtPPI" promptText="Ej. 96, 120" styleClass="campo-texto" maxWidth="200" alignment="CENTER">
-                    <tooltip>
-                        <Tooltip text="Detectado automáticamente. Modificar solo si usa un monitor externo no estándar." />
-                    </tooltip>
-                </TextField>
+                <HBox alignment="CENTER" spacing="10">
+                    <TextField fx:id="txtPPI" promptText="Ej. 96, 120" styleClass="campo-texto" maxWidth="160" alignment="CENTER">
+                        <tooltip>
+                            <Tooltip text="Calculado desde la diagonal. Para máxima exactitud use “Medir con tarjeta”." />
+                        </tooltip>
+                    </TextField>
+                    <Button text="📐 Medir con tarjeta" onAction="#medirConTarjeta" styleClass="boton-acento"/>
+                </HBox>
                 <Label fx:id="lblResolucion" text="Detectando resolución de pantalla…" styleClass="etiqueta-subtitulo" />
 
                 <Separator />
@@ -51,7 +54,7 @@
                         <Tooltip text="Ingrese únicamente el valor obtenido mediante calibración de cámara. Sin este valor la distancia pupilar se reporta como N/D." />
                     </tooltip>
                 </TextField>
-                <Label text="No use un valor estimado: una focal sin calibrar invalida la distancia pupilar." styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" maxWidth="540" />
+                <Label text="Se calcula sola con “Calibrar a esta distancia” en la pantalla de posición. No escriba un valor estimado." styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" maxWidth="540" />
 
                 <Separator />
 

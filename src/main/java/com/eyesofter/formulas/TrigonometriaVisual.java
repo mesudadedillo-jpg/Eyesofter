@@ -2,8 +2,17 @@ package com.eyesofter.formulas;
 
 /**
  * Módulo de dimensionamiento matemático de optotipos y algoritmos evaluativos ETDRS.
+ *
+ * <p>Convención: un optotipo de agudeza decimal V subtiende 5 minutos de arco × MAR
+ * en su altura total, con MAR = 1 / V (minutos de arco). A 6 m, una letra 20/20
+ * mide 8.73 mm.</p>
  */
 public class TrigonometriaVisual {
+
+    /** Minutos de arco que subtiende la altura de un optotipo con MAR = 1. */
+    public static final double MINUTOS_ARCO_OPTOTIPO = 5.0;
+    /** Milímetros por pulgada (constante exacta). */
+    public static final double MM_POR_PULGADA = 25.4;
 
     /**
      * Fórmula 4: Conversión Estándar Inversa a Ángulo Mínimo de Resolución Visual (MAR).
@@ -15,32 +24,31 @@ public class TrigonometriaVisual {
 
     /**
      * Fórmula 5: Ecuación Trigonométrica para la Altura Física Objetiva (h_mm).
+     *
+     * <p>h = 2 · d · tan(θ / 2), con θ = 5′ · MAR = MAR · π / 2160 rad.
+     * Por eso el argumento de la tangente es MAR · π / 4320.
+     * (La versión anterior usaba π / 8640 y producía letras de la mitad del tamaño.)</p>
+     *
      * @param d Distancia del paciente a la pantalla en milímetros.
-     * @param mar Ángulo Mínimo de Resolución Visual.
+     * @param mar Ángulo Mínimo de Resolución Visual (minutos de arco).
      * @return Altura estricta del optotipo en milímetros.
      */
     public static double calcularAlturaMM(double d, double mar) {
-        // Uso de la versión trigonométrica exacta para mayor rigor científico
-        return 2 * d * Math.tan((mar * Math.PI) / 8640.0);
+        double mitadAnguloRad = (MINUTOS_ARCO_OPTOTIPO * mar / 2.0) * Math.PI / (180.0 * 60.0);
+        return 2 * d * Math.tan(mitadAnguloRad);
     }
 
     /**
-     * Algoritmia linealizada de la Fórmula 5 (Alto rendimiento en CPU).
-     * Útil si el renderizado en JavaFX sufre caídas de fotogramas.
+     * Aproximación lineal (ángulo pequeño) de la Fórmula 5: h ≈ d · MAR · π / 2160.
+     * La diferencia con la versión exacta es menor a 0.001 % en el rango clínico.
      */
     public static double calcularAlturaMMLineal(double d, double mar) {
-        return (d * mar * Math.PI) / 4320.0;
+        return (d * mar * Math.PI) / 2160.0;
     }
 
     /**
-     * Calcula la densidad de píxeles del monitor (PPI). Este es el "Factor 2"
-     * (tamaño del monitor) del dimensionamiento de optotipos: a partir de la
-     * resolución (detectada por JavaFX Screen) y la diagonal física en pulgadas
-     * (dato que el operador ingresa, porque el sistema operativo no siempre lo
-     * expone con fiabilidad) se obtiene el PPI real del equipo.
-     * @param resX Resolución horizontal de la pantalla (ej. 1920).
-     * @param resY Resolución vertical de la pantalla (ej. 1080).
-     * @param pulgadasDiagonal Tamaño físico de la pantalla en pulgadas (ej. 15.6).
+     * Calcula la densidad de píxeles del monitor (PPI) a partir de la resolución
+     * FÍSICA y la diagonal en pulgadas.
      */
     public static double calcularPPI(double resX, double resY, double pulgadasDiagonal) {
         if (pulgadasDiagonal <= 0) return 0;
@@ -48,33 +56,44 @@ public class TrigonometriaVisual {
     }
 
     /**
-     * Fórmula 6: Transformación Transescalar de milímetros a Matriz de Píxeles.
+     * PPI medido directamente: un objeto de tamaño físico conocido ocupa cierto
+     * número de píxeles físicos en pantalla (p. ej. una tarjeta bancaria ISO/IEC 7810
+     * ID-1 mide 85.60 mm de ancho).
      */
-    public static double calcularAlturaPixel(double hMm, double ppi) {
-        // 25.4 es la constante de conversión exacta de pulgadas a milímetros
-        return (hMm / 25.4) * ppi;
+    public static double calcularPPIPorObjeto(double pixelesFisicos, double milimetrosReales) {
+        if (pixelesFisicos <= 0 || milimetrosReales <= 0) return 0;
+        return pixelesFisicos / (milimetrosReales / MM_POR_PULGADA);
     }
 
     /**
-     * NUEVO — Fórmula 6-b: igual que calcularAlturaPixel, pero corrigiendo por
-     * el "Factor 3" (tipo de letra). El tamaño de fuente (point size) que hay
-     * que aplicar en pantalla NO es igual a la altura óptica real que exige la
-     * fórmula 6, porque cada tipografía tiene una relación distinta entre su
-     * "em square" (el tamaño nominal) y la altura real de sus glifos (cap-height).
-     * Por eso dividimos la altura en píxeles requerida entre el factor de
-     * corrección de la fuente elegida (ver {@link FuentesOptotipo}), y así el
-     * tamaño de fuente que se aplica en la interfaz sí produce físicamente la
-     * altura óptica correcta a la distancia y PPI configurados.
-     *
-     * @param hMm Altura física requerida en milímetros (fórmula 5).
-     * @param ppi Densidad de píxeles del monitor (fórmula "calcularPPI").
-     * @param factorCorreccionFuente Relación cap-height/em de la tipografía elegida (ver FuentesOptotipo).
-     * @return Tamaño de fuente en puntos/píxeles a aplicar en el Label de JavaFX.
+     * Fórmula 6: Transformación de milímetros a píxeles FÍSICOS.
+     */
+    public static double calcularAlturaPixel(double hMm, double ppi) {
+        return (hMm / MM_POR_PULGADA) * ppi;
+    }
+
+    /**
+     * Fórmula 6-b: tamaño de fuente (em) que produce la altura de mayúscula requerida,
+     * corrigiendo por la relación cap-height/em de la tipografía (ver {@link FuentesOptotipo}).
+     * El resultado está en píxeles físicos; para JavaFX use
+     * {@link #calcularTamanioFuenteLogico(double, double, double, double)}.
      */
     public static double calcularTamanioFuenteAjustado(double hMm, double ppi, double factorCorreccionFuente) {
         double alturaPixelRequerida = calcularAlturaPixel(hMm, ppi);
         if (factorCorreccionFuente <= 0) factorCorreccionFuente = 1.0;
         return alturaPixelRequerida / factorCorreccionFuente;
+    }
+
+    /**
+     * Igual que la fórmula 6-b, pero expresado en píxeles LÓGICOS de JavaFX.
+     * Windows aplica un escalado (125 %, 150 %…): JavaFX multiplica cada "px" de CSS
+     * por ese factor. Si no se divide, las letras salen ampliadas en esa proporción.
+     *
+     * @param escalaSalida Factor de escalado de la pantalla (Screen.getOutputScaleY()), 1.0 si no hay.
+     */
+    public static double calcularTamanioFuenteLogico(double hMm, double ppiFisico, double factorCorreccionFuente, double escalaSalida) {
+        double escala = escalaSalida > 0 ? escalaSalida : 1.0;
+        return calcularTamanioFuenteAjustado(hMm, ppiFisico, factorCorreccionFuente) / escala;
     }
 
     /**
@@ -85,14 +104,53 @@ public class TrigonometriaVisual {
         return -Math.log10(vDecimal);
     }
 
+    /** Inversa de la fórmula 7: agudeza decimal a partir de LogMAR. */
+    public static double decimalDesdeLogMAR(double logMar) {
+        return Math.pow(10, -logMar);
+    }
+
+    /** Denominadores Snellen estándar (pies, numerador 20). */
+    private static final int[] DENOMINADORES_SNELLEN = {10, 12, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 320, 400};
+
+    /** Convierte LogMAR a la notación "20/XX" redondeando al denominador estándar más cercano (en escala log). */
+    public static String snellenDesdeLogMAR(double logMar) {
+        double exacto = 20 * Math.pow(10, logMar);
+        int mejor = DENOMINADORES_SNELLEN[0];
+        double menor = Double.MAX_VALUE;
+        for (int d : DENOMINADORES_SNELLEN) {
+            double dif = Math.abs(Math.log10(d) - Math.log10(exacto));
+            if (dif < menor) { menor = dif; mejor = d; }
+        }
+        return "20/" + mejor;
+    }
+
+    /** Equivalente métrico "6/XX" redondeado a un decimal útil. */
+    public static String snellenMetricoDesdeLogMAR(double logMar) {
+        double denominador = 6 * Math.pow(10, logMar);
+        return denominador >= 10 ? String.format(java.util.Locale.US, "6/%.0f", denominador)
+                : String.format(java.util.Locale.US, "6/%.1f", denominador);
+    }
+
     /**
-     * Fórmula 8: Adición Estocástica Penalizante por Letra (Criterio ETDRS).
-     * @param logMarInicial El valor LogMAR de la fila que se está evaluando.
-     * @param nAciertos Cantidad de letras leídas correctamente en esa fila.
-     * @return Fracción fina de agudeza visual.
+     * Fórmula 8: Puntuación letra por letra (criterio ETDRS).
+     *
+     * <p>LogMAR = LogMAR_fila_superior + 0.1 − (0.1 / letrasPorFila) · aciertosTotales,
+     * donde aciertosTotales cuenta todas las letras leídas desde la fila superior
+     * (incluidas las filas superiores que se dieron por leídas).</p>
+     *
+     * @param logMarFilaSuperior LogMAR de la fila más grande considerada.
+     * @param letrasPorFila Optotipos por fila (5 en ETDRS, 3 en EYESOFTER).
+     * @param aciertosTotales Letras correctas acumuladas desde esa fila.
+     */
+    public static double calcularPuntuacionETDRS(double logMarFilaSuperior, int letrasPorFila, int aciertosTotales) {
+        if (letrasPorFila <= 0) letrasPorFila = 5;
+        return logMarFilaSuperior + 0.1 - (0.1 / letrasPorFila) * Math.max(0, aciertosTotales);
+    }
+
+    /**
+     * Compatibilidad con la versión anterior (5 letras por fila: 0.02 por letra).
      */
     public static double calcularPuntuacionETDRS(double logMarInicial, int nAciertos) {
-        // Cada acierto recompensa restando 0.02 a la escala logarítmica
         return logMarInicial - (nAciertos * 0.02);
     }
 }

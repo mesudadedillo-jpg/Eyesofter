@@ -5,20 +5,69 @@
 <?import javafx.scene.control.ProgressBar?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-<StackPane stylesheets="@../css/estilos.css" styleClass="pantalla-contraste" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorSnellen">
- <children><VBox spacing="20" styleClass="prueba-clinica"><children>
-   <HBox alignment="CENTER_LEFT" spacing="10"><children><VBox spacing="5" HBox.hgrow="ALWAYS"><children><Label fx:id="lblLinea" text="Línea 1 de 8" styleClass="etiqueta-subtitulo" /><ProgressBar fx:id="barraProgreso" prefWidth="240" progress="0" styleClass="barra-progreso" /></children></VBox><Button text="Pausar prueba" onAction="#pausarPrueba" styleClass="boton-secundario"/><Button text="Cancelar prueba" onAction="#cancelarPrueba" styleClass="boton-secundario"/><Label fx:id="lblEstado" text="Preparando evaluación…" styleClass="estado estado-evaluacion" /></children></HBox>
-   <VBox spacing="7" alignment="CENTER"><children><Label fx:id="lblAlerta" visible="false" managed="false" textAlignment="CENTER" wrapText="true" maxWidth="850" styleClass="estado texto-alerta"/><HBox fx:id="controlesAlerta" visible="false" managed="false" alignment="CENTER" spacing="8"><children><Button text="A−" onAction="#reducirAlerta" styleClass="boton-secundario"/><Button text="A+" onAction="#ampliarAlerta" styleClass="boton-secundario"/><Button text="Reanudar" onAction="#reanudarPrueba" styleClass="boton-primario"/></children></HBox></children></VBox>
-   <VBox alignment="CENTER" VBox.vgrow="ALWAYS" spacing="32"><children>
-     <Label text="Tamizaje de agudeza visual" styleClass="etiqueta-subtitulo" />
-     <HBox fx:id="contenedorOptotipos" alignment="CENTER" spacing="54" />
-     <Label text="Indique las letras de izquierda a derecha." styleClass="etiqueta-subtitulo" />
+<?import javafx.scene.shape.Circle?>
+<StackPane fx:id="raiz" stylesheets="@../css/estilos.css" styleClass="pantalla-contraste" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorSnellen">
+ <children><VBox spacing="14" styleClass="prueba-clinica"><children>
+
+   <!-- Barra superior: ojo evaluado, nivel, progreso, distancia y acciones -->
+   <HBox alignment="CENTER_LEFT" spacing="16" styleClass="barra-prueba"><children>
+     <Label fx:id="lblOjo" text="AO" styleClass="insignia-ojo"/>
+     <VBox spacing="5"><children>
+       <Label fx:id="lblLinea" text="Fila 1" styleClass="etiqueta-subtitulo-fuerte"/>
+       <ProgressBar fx:id="barraProgreso" prefWidth="260" progress="0" styleClass="barra-progreso"/>
+     </children></VBox>
+     <Region HBox.hgrow="ALWAYS"/>
+     <Label fx:id="lblDistancia" text="Cámara no activa" styleClass="chip-distancia"/>
+     <Button text="⏸  Pausar" onAction="#pausarPrueba" styleClass="boton-secundario"/>
+     <Button text="✕  Cancelar" onAction="#cancelarPrueba" styleClass="boton-secundario"/>
+   </children></HBox>
+
+   <!-- Indicación principal (qué ojo tapar) -->
+   <Label fx:id="lblInstruccion" text="Mantenga ambos ojos descubiertos." styleClass="banda-instruccion" maxWidth="Infinity" wrapText="true"/>
+
+   <!-- Alerta de pausa automática -->
+   <VBox spacing="7" alignment="CENTER"><children>
+     <Label fx:id="lblAlerta" visible="false" managed="false" textAlignment="CENTER" wrapText="true" maxWidth="900" styleClass="alerta-pausa"/>
+     <HBox fx:id="controlesAlerta" visible="false" managed="false" alignment="CENTER" spacing="8"><children>
+       <Button text="A−" onAction="#reducirAlerta" styleClass="boton-secundario"/>
+       <Button text="A+" onAction="#ampliarAlerta" styleClass="boton-secundario"/>
+       <Button text="▶  Reanudar" onAction="#reanudarPrueba" styleClass="boton-primario"/>
+     </children></HBox>
    </children></VBox>
-   <VBox fx:id="panelRespaldo" spacing="9" styleClass="registro-respaldo"><children>
-     <Label text="Registro manual de respaldo para personal operador" styleClass="etiqueta-subtitulo" />
-     <HBox spacing="10"><children><TextField fx:id="txtRespuestaManual" promptText="Ejemplo: EFP" onAction="#registrarRespuestaManual" styleClass="campo-texto" HBox.hgrow="ALWAYS" /><Button fx:id="btnRegistrar" text="Registrar" onAction="#registrarRespuestaManual" styleClass="boton-secundario" /><Button fx:id="btnEscuchar" text="Capturar por voz" onAction="#capturarPorVoz" styleClass="boton-primario" /></children></HBox>
+
+   <!-- Optotipos -->
+   <VBox alignment="CENTER" VBox.vgrow="ALWAYS" spacing="18"><children>
+     <HBox fx:id="contenedorOptotipos" alignment="CENTER" spacing="54"/>
    </children></VBox>
- </children><padding><Insets top="28" right="42" bottom="32" left="42" /></padding></VBox></children>
+
+   <!-- Estado del micrófono y de la respuesta -->
+   <HBox alignment="CENTER" spacing="12" styleClass="barra-estado-voz"><children>
+     <Circle fx:id="indicadorMicrofono" radius="9" styleClass="indicador-microfono"/>
+     <Label fx:id="lblEstado" text="Preparando evaluación…" styleClass="estado-voz" wrapText="true"/>
+     <Label fx:id="lblOido" text="" styleClass="chip-oido"/>
+   </children></HBox>
+
+   <!-- Registro del operador (modo asistido) -->
+   <VBox fx:id="panelRespaldo" spacing="10" styleClass="registro-respaldo"><children>
+     <HBox alignment="CENTER_LEFT" spacing="10"><children>
+       <Label text="Registro del operador" styleClass="subtitulo-seccion"/>
+       <Label text="Clic en una letra (o teclas 1·2·3) para marcarla como no leída  ·  Enter registra  ·  V voz  ·  Retroceso deshace" styleClass="etiqueta-ayuda" wrapText="true"/>
+     </children></HBox>
+     <HBox alignment="CENTER_LEFT" spacing="10"><children>
+       <HBox fx:id="panelMarcas" spacing="8" alignment="CENTER_LEFT"/>
+       <Button text="✓ Todas leídas (A)" onAction="#marcarTodasCorrectas" styleClass="boton-secundario"/>
+       <Button text="✗ Ninguna (N)" onAction="#marcarNinguna" styleClass="boton-secundario"/>
+       <Region HBox.hgrow="ALWAYS"/>
+       <Button fx:id="btnDeshacer" text="↶ Deshacer fila" onAction="#deshacerFila" styleClass="boton-secundario"/>
+     </children></HBox>
+     <HBox spacing="10" alignment="CENTER_LEFT"><children>
+       <TextField fx:id="txtRespuestaManual" promptText="Opcional: escriba lo que dijo (ej. C D O)" onAction="#registrarRespuestaManual" styleClass="campo-texto" HBox.hgrow="ALWAYS"/>
+       <Button fx:id="btnEscuchar" text="🎤 Capturar por voz (V)" onAction="#capturarPorVoz" styleClass="boton-secundario"/>
+       <Button fx:id="btnRegistrar" text="Registrar fila  ⏎" onAction="#registrarRespuestaManual" styleClass="boton-primario"/>
+     </children></HBox>
+   </children></VBox>
+ </children><padding><Insets top="22" right="36" bottom="24" left="36"/></padding></VBox></children>
 </StackPane>

@@ -67,6 +67,7 @@ public final class SesionEvaluacion {
         entradaManual = false;
         entradaVoz = false;
         activa = true;
+        ControladorSnellen.reiniciarIntroduccion();
     }
 
     public static String getCurpPaciente() { return curpPaciente; }

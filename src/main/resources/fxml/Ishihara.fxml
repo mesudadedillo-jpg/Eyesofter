@@ -8,13 +8,18 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.shape.Circle?>
 <StackPane stylesheets="@../css/estilos.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorIshihara">
  <children><VBox maxWidth="900" spacing="18" styleClass="pagina-clinica"><children>
-   <HBox alignment="CENTER_LEFT"><children><VBox spacing="5" HBox.hgrow="ALWAYS"><children><Label fx:id="lblLamina" text="Lámina 1 de 5" styleClass="etiqueta-subtitulo" /><ProgressBar fx:id="barraProgreso" prefWidth="240" progress="0" styleClass="barra-progreso" /></children></VBox><Button text="Cancelar prueba" onAction="#cancelarPrueba" styleClass="boton-secundario"/><Label fx:id="lblMarcador" text="0 respuestas concordantes" styleClass="estado estado-evaluacion" /></children></HBox>
+   <HBox alignment="CENTER_LEFT"><children><VBox spacing="5" HBox.hgrow="ALWAYS"><children><Label fx:id="lblLamina" text="Lámina 1 de 5" styleClass="etiqueta-subtitulo" /><ProgressBar fx:id="barraProgreso" prefWidth="240" progress="0" styleClass="barra-progreso" /></children></VBox><Button text="✕  Cancelar" onAction="#cancelarPrueba" styleClass="boton-secundario"/><Label fx:id="lblMarcador" text="0 respuestas registradas" styleClass="chip-distancia" /></children></HBox>
    <VBox alignment="CENTER" spacing="10"><children><Label text="Tamizaje cromático" styleClass="etiqueta-titulo" /><Label text="Observe sin recibir pistas. Indique únicamente el número que ve; si no distingue un número, responda NADA." styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" /></children></VBox>
-   <StackPane prefHeight="330" styleClass="contenedor-lamina"><children><ImageView fx:id="vistaLamina" fitWidth="500" fitHeight="310" preserveRatio="true" /><Label fx:id="lblSinImagen" text="Lámina cromática no instalada" styleClass="etiqueta-subtitulo" textAlignment="CENTER" /></children></StackPane>
-   <Label fx:id="lblEstado" text="" styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" />
+   <StackPane prefHeight="420" styleClass="contenedor-lamina"><children><ImageView fx:id="vistaLamina" fitWidth="560" fitHeight="400" preserveRatio="true" smooth="true" /><Label fx:id="lblSinImagen" text="Lámina cromática no instalada" styleClass="etiqueta-subtitulo" textAlignment="CENTER" /></children></StackPane>
+   <HBox alignment="CENTER" spacing="12" styleClass="barra-estado-voz"><children><Circle fx:id="indicadorMicrofono" radius="9" styleClass="indicador-microfono"/><Label fx:id="lblEstado" text="" styleClass="estado-voz" wrapText="true" /><Label fx:id="lblOido" text="" styleClass="chip-oido"/></children></HBox>
    <Label fx:id="lblRetroalimentacion" text="" styleClass="retroalimentacion" />
-   <HBox fx:id="panelRespaldo" spacing="10" alignment="CENTER"><children><TextField fx:id="txtRespuesta" promptText="Número observado o NADA" onAction="#registrarRespuesta" styleClass="campo-texto" prefWidth="260" /><Button fx:id="btnRegistrar" text="Registrar" onAction="#registrarRespuesta" styleClass="boton-secundario" /><Button fx:id="btnEscuchar" text="Capturar por voz" onAction="#capturarPorVoz" styleClass="boton-primario" /></children></HBox>
+   <VBox fx:id="panelRespaldo" spacing="10" alignment="CENTER" styleClass="registro-respaldo"><children>
+     <HBox spacing="10" alignment="CENTER"><children><TextField fx:id="txtRespuesta" promptText="Número observado o NADA" onAction="#registrarRespuesta" styleClass="campo-texto" prefWidth="260" /><Button fx:id="btnEscuchar" text="🎤 Capturar por voz" onAction="#capturarPorVoz" styleClass="boton-secundario" /><Button fx:id="btnRegistrar" text="Registrar  ⏎" onAction="#registrarRespuesta" styleClass="boton-primario" /></children></HBox>
+     <FlowPane fx:id="tecladoNumerico" hgap="6" vgap="6" alignment="CENTER" prefWrapLength="700"/>
+   </children></VBox>
  </children><padding><Insets top="28" right="44" bottom="36" left="44" /></padding></VBox></children>
 </StackPane>

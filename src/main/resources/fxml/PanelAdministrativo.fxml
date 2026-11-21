@@ -15,6 +15,7 @@
             <Button fx:id="btnPacientes" text="♙   Pacientes" onAction="#pacientes" styleClass="boton-menu"/>
             <Button fx:id="btnHistorial" text="◉   Evaluaciones" onAction="#historial" styleClass="boton-menu"/>
             <Button fx:id="btnReportes" text="▥   Reportes" onAction="#reportes" styleClass="boton-menu"/>
+            <Button fx:id="btnHerramientas" text="✚   Herramientas" onAction="#herramientas" styleClass="boton-menu"/>
             <Button fx:id="btnConfiguracion" text="⚙   Configuración" onAction="#configuracion" styleClass="boton-menu"/>
         </children><padding><Insets top="18" right="12" bottom="18" left="12"/></padding></VBox>
         <Button text="⏻   Cerrar sesión" onAction="#cerrarSesion" styleClass="boton-salir"><VBox.margin><Insets top="8" right="12" bottom="8" left="12"/></VBox.margin></Button>

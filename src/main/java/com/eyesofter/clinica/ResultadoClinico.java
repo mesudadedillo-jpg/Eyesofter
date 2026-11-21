@@ -20,6 +20,8 @@ public final class ResultadoClinico {
     public static final double MINIMO_CUMPLIMIENTO_DISTANCIA_PCT = 90.0;
     public static final int UMBRAL_ASIMETRIA_LINEAS = 2;
     public static final int UMBRAL_RESPUESTAS_DEFICIENCIA_COLOR = 2;
+    public static final double LOGMAR_MARCADAMENTE_REDUCIDA = 0.8;
+    public static final double LOGMAR_REDUCIDA = 0.3;
 
     /** Nivel de seguimiento para orientar al usuario; no equivale a diagnóstico ni a una urgencia médica. */
     public enum PrioridadSeguimiento { SIN_BANDERAS, PROGRAMADA, PREFERENTE, PRIORITARIA }
@@ -62,20 +64,29 @@ public final class ResultadoClinico {
             this.lineasPerdidas = lineasPerdidas;
         }
 
+        /**
+         * Construye el resultado con la puntuación letra por letra del motor.
+         * Las "líneas perdidas" se miden respecto a 20/20 (LogMAR 0.0) en pasos de 0.1.
+         */
         public static ResultadoOjo desdeMotor(MotorSnellen motor) {
             int indice = motor.getIndiceUltimaFilaCorrecta();
             int aciertos = motor.getAciertosTotales();
             int total = motor.getLetrasEvaluadasTotales();
-            if (indice < 0) {
-                return new ResultadoOjo(-1, aciertos, total, "<20/200", null, null,
-                        MotorSnellen.getNumeroNiveles());
+            double logMar = motor.getLogMarPuntuado();
+            if (!Double.isFinite(logMar)) {
+                return new ResultadoOjo(-1, aciertos, total, "N/D", null, null, MotorSnellen.getNumeroNiveles());
             }
+            int perdidas = Math.max(0, (int) Math.round(logMar / 0.1));
+            String snellen = indice < 0 ? "<20/200" : TrigonometriaVisual.snellenDesdeLogMAR(logMar);
+            return new ResultadoOjo(indice, aciertos, total, snellen, logMar, null, perdidas);
+        }
 
-            double decimal = MotorSnellen.getNivelAgudeza(indice);
-            int perdidas = Math.max(0, MotorSnellen.getNumeroNiveles() - 1 - indice);
-            return new ResultadoOjo(indice, aciertos, total,
-                    MotorSnellen.formatoSnellen(decimal),
-                    TrigonometriaVisual.calcularLogMAR(decimal), null, perdidas);
+        /** Para pruebas y vistas: resultado a partir de un LogMAR ya calculado. */
+        public static ResultadoOjo desdeLogMar(double logMar) {
+            int perdidas = Math.max(0, (int) Math.round(logMar / 0.1));
+            int indice = logMar > 1.0 + 1e-9 ? -1 : 0;
+            String snellen = indice < 0 ? "<20/200" : TrigonometriaVisual.snellenDesdeLogMAR(logMar);
+            return new ResultadoOjo(indice, 0, 0, snellen, logMar, null, perdidas);
         }
 
         public int getIndiceUltimaFilaCorrecta() { return indiceUltimaFilaCorrecta; }
@@ -96,6 +107,11 @@ public final class ResultadoClinico {
 
         public String resumen() {
             return snellen + " | LogMAR " + getLogMarFormateado();
+        }
+
+        /** Agudeza decimal equivalente (NaN si no hay LogMAR). */
+        public double getDecimal() {
+            return logMar == null ? Double.NaN : TrigonometriaVisual.decimalDesdeLogMAR(logMar);
         }
     }
 
@@ -196,11 +212,10 @@ public final class ResultadoClinico {
 
     public List<String> generarAlertas() {
         List<String> alertas = new ArrayList<>();
-        if (ojoDerecho != null && ojoIzquierdo != null &&
-                Math.abs(ojoDerecho.getLineasPerdidas() - ojoIzquierdo.getLineasPerdidas()) >= UMBRAL_ASIMETRIA_LINEAS) {
-            Ojo ojoMasLimitado = ojoDerecho.getLineasPerdidas() > ojoIzquierdo.getLineasPerdidas()
+        if (hayAsimetria()) {
+            Ojo ojoMasLimitado = ojoDerecho.getLogMar() > ojoIzquierdo.getLogMar()
                     ? Ojo.DERECHO : Ojo.IZQUIERDO;
-            alertas.add("ALERTA: asimetría de agudeza visual mayor a 2 líneas; valorar " + ojoMasLimitado.etiqueta().toLowerCase(Locale.ROOT) + " y descartar una causa de disminución visual.");
+            alertas.add("ALERTA: diferencia entre ojos de 2 líneas o más; valorar " + ojoMasLimitado.etiqueta().toLowerCase(Locale.ROOT) + " y descartar una causa de disminución visual.");
         }
         if (ishiharaRespuestasDeficiencia >= UMBRAL_RESPUESTAS_DEFICIENCIA_COLOR) {
             alertas.add("ALERTA: tamiz de color positivo; respuestas compatibles con deficiencia de color. Requiere confirmación con evaluación optométrica.");
@@ -221,21 +236,32 @@ public final class ResultadoClinico {
         if (esAgudezaMarcadamenteReducida(ojoDerecho) || esAgudezaMarcadamenteReducida(ojoIzquierdo)) {
             return PrioridadSeguimiento.PRIORITARIA;
         }
-        boolean asimetria = ojoDerecho != null && ojoIzquierdo != null
-                && Math.abs(ojoDerecho.getLineasPerdidas() - ojoIzquierdo.getLineasPerdidas()) >= UMBRAL_ASIMETRIA_LINEAS;
-        if (asimetria || esAgudezaReducida(ojoDerecho) || esAgudezaReducida(ojoIzquierdo)) {
+        if (hayAsimetria() || esAgudezaReducida(ojoDerecho) || esAgudezaReducida(ojoIzquierdo)) {
             return PrioridadSeguimiento.PREFERENTE;
         }
         if (ishiharaRespuestasDeficiencia >= UMBRAL_RESPUESTAS_DEFICIENCIA_COLOR) return PrioridadSeguimiento.PROGRAMADA;
         return PrioridadSeguimiento.SIN_BANDERAS;
     }
 
+    /** LogMAR ≥ 0.8 (20/125 o peor) o no alcanzó 20/200. */
     private boolean esAgudezaMarcadamenteReducida(ResultadoOjo ojo) {
-        return ojo != null && ojo.getIndiceUltimaFilaCorrecta() >= 0 && ojo.getIndiceUltimaFilaCorrecta() <= 1;
+        return ojo != null && ojo.getLogMar() != null && ojo.getLogMar() >= LOGMAR_MARCADAMENTE_REDUCIDA - 1e-9;
     }
 
+    /** LogMAR ≥ 0.3 (20/40 o peor): referencia habitual en tamizaje escolar. */
     private boolean esAgudezaReducida(ResultadoOjo ojo) {
-        return ojo != null && ojo.getIndiceUltimaFilaCorrecta() >= 0 && ojo.getIndiceUltimaFilaCorrecta() <= 4;
+        return ojo != null && ojo.getLogMar() != null && ojo.getLogMar() >= LOGMAR_REDUCIDA - 1e-9;
+    }
+
+    /** Diferencia entre ojos en LogMAR (NaN si falta alguno). */
+    public double getDiferenciaInterocularLogMar() {
+        if (ojoDerecho == null || ojoIzquierdo == null || ojoDerecho.getLogMar() == null || ojoIzquierdo.getLogMar() == null) return Double.NaN;
+        return Math.abs(ojoDerecho.getLogMar() - ojoIzquierdo.getLogMar());
+    }
+
+    private boolean hayAsimetria() {
+        double dif = getDiferenciaInterocularLogMar();
+        return Double.isFinite(dif) && dif >= UMBRAL_ASIMETRIA_LINEAS * 0.1 - 1e-9;
     }
 
     public String getAlertasComoTexto() {

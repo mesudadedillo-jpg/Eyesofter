@@ -23,6 +23,9 @@ public class MainApp extends Application {
     public void start(Stage primaryStage) {
         configurarDirectorioPersistencia();
         instalarEstiloVentanasEmergentes();
+        // Las frases de la voz guía se sintetizan en segundo plano y quedan en caché.
+        com.eyesofter.config.AppConfig.cargar();
+        com.eyesofter.voz.VozGuia.precalentar();
 
         try {
             Image icono = new Image(getClass().getResourceAsStream("/img/eye-icono.png"));
@@ -135,6 +138,11 @@ public class MainApp extends Application {
         if (stage.getWidth() < ancho) stage.setWidth(ancho);
         if (stage.getHeight() < alto) stage.setHeight(alto);
         stage.setResizable(true);
+    }
+
+    @Override
+    public void stop() {
+        com.eyesofter.voz.ReconocedorOptotipos.liberarCompartido();
     }
 
     public static void main(String[] args) {

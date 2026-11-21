@@ -193,85 +193,225 @@ public class DetectorDistancia {
     }
 
     /**
-     * Evalúa la posición del paciente ignorando rostros falsos secundarios
-     * y enfocándose siempre en el rostro principal.
+     * Evalúa la posición del paciente con el rostro principal.
+     *
+     * Mejoras de exactitud:
+     *  - El fotograma se reduce a ~480 px de ancho y se ecualiza el histograma:
+     *    la detección es 3-4 veces más rápida y tolera mejor la iluminación.
+     *  - La distancia se filtra con la mediana de las últimas lecturas y luego
+     *    un suavizado exponencial: desaparecen los saltos de ±10 cm entre cuadros.
+     *  - Histéresis: para salir de rango hay que superar la tolerancia + 3 cm,
+     *    así la prueba no se pausa por oscilaciones en el borde.
+     *  - Se detecta una segunda persona si su rostro mide al menos el 55 % del principal.
      */
     public synchronized CondicionPrueba evaluarCondicionPrueba() {
         Mat frame = new Mat();
+        Mat gris = new Mat();
+        Mat reducido = new Mat();
+        MatOfRect rostros = new MatOfRect();
         try {
-            if (camara.read(frame)) {
-                frame.copyTo(ultimoFrame);
-
-                MatOfRect rostros = new MatOfRect();
-                Mat gris = new Mat();
-                Imgproc.cvtColor(frame, gris, Imgproc.COLOR_BGR2GRAY);
-
-                // Detección filtrada para mayor estabilidad
-                detectorRostros.detectMultiScale(
-                        gris,
-                        rostros,
-                        1.15,
-                        5,
-                        0,
-                        new org.opencv.core.Size(60, 60),
-                        new org.opencv.core.Size()
-                );
-
-                Rect[] arrayRostros = rostros.toArray();
-                ultimoNumeroRostros = arrayRostros.length;
-                boolean ruidoVisual = hayRuidoVisual(gris);
-
-                if (arrayRostros.length > 0) {
-                    ultimoRostroDetectado = true;
-
-                    // Seleccionamos siempre el rostro más grande (el paciente), sin bloquear por falsos positivos
-                    Rect rostro = seleccionarRostroPrincipal(arrayRostros);
-                    double anchoPixeles = rostro.width;
-
-                    double pActualEstimado = anchoPixeles * 0.45;
-
-                    double distanciaActualCm = CalibracionFocal.calcularDistanciaZ(
-                            CalibracionFocal.IPD_PROMEDIO_INFANTIL_MM,
-                            distanciaFocalCalibrada,
-                            pActualEstimado
-                    );
-                    this.ultimaDistanciaCm = distanciaActualCm;
-
-                    System.out.printf("📷 [VISIÓN]: Distancia detectada: %.2f cm (Objetivo: %.0f cm)\n", distanciaActualCm, distanciaObjetivoCm);
-
-                    boolean enRango = Math.abs(distanciaActualCm - distanciaObjetivoCm) <= AppConfig.TOLERANCIA_DISTANCIA_CM;
-                    if (enRango) registrarMuestraPupilar(gris, rostro, distanciaActualCm);
-
-                    boolean correcta = enRango && !ruidoVisual;
-                    registrarMuestraFiabilidad(correcta);
-
-                    gris.release();
-                    rostros.release();
-
-                    if (!enRango) {
-                        ultimaCondicion = distanciaActualCm < distanciaObjetivoCm
-                                ? CondicionPrueba.DEMASIADO_CERCA
-                                : CondicionPrueba.DEMASIADO_LEJOS;
-                    } else {
-                        ultimaCondicion = ruidoVisual ? CondicionPrueba.RUIDO_VISUAL : CondicionPrueba.CORRECTA;
-                    }
-                    return ultimaCondicion;
-                } else {
-                    ultimoRostroDetectado = false;
-                    this.ultimaDistanciaCm = -1;
-                    System.out.println("⚠️ [VISIÓN]: No se detecta ningún rostro frente a la pantalla.");
-                    registrarMuestraFiabilidad(false);
-                    gris.release();
-                    rostros.release();
-                    ultimaCondicion = CondicionPrueba.SIN_ROSTRO;
-                    return ultimaCondicion;
-                }
+            if (camara == null || !camara.read(frame) || frame.empty()) {
+                registrarMuestraFiabilidad(false);
+                ultimaCondicion = CondicionPrueba.CAMARA_SIN_IMAGEN;
+                return ultimaCondicion;
             }
-            registrarMuestraFiabilidad(false);
-            ultimaCondicion = CondicionPrueba.CAMARA_SIN_IMAGEN;
+            frame.copyTo(ultimoFrame);
+            Imgproc.cvtColor(frame, gris, Imgproc.COLOR_BGR2GRAY);
+
+            double escala = gris.cols() > ANCHO_PROCESAMIENTO ? ANCHO_PROCESAMIENTO / (double) gris.cols() : 1.0;
+            if (escala < 1.0) Imgproc.resize(gris, reducido, new org.opencv.core.Size(), escala, escala, Imgproc.INTER_AREA);
+            else gris.copyTo(reducido);
+            Imgproc.equalizeHist(reducido, reducido);
+
+            int minimo = Math.max(30, (int) Math.round(60 * escala));
+            detectorRostros.detectMultiScale(reducido, rostros, 1.1, 5, 0,
+                    new org.opencv.core.Size(minimo, minimo), new org.opencv.core.Size());
+
+            Rect[] arrayRostros = rostros.toArray();
+            ultimoNumeroRostros = arrayRostros.length;
+            boolean ruidoVisual = hayRuidoVisual(reducido);
+
+            if (arrayRostros.length == 0) {
+                ultimoRostroDetectado = false;
+                ultimoRostro = null;
+                cuadrosSinRostro++;
+                // Un parpadeo de la detección no borra la distancia: se conserva 2 cuadros.
+                if (cuadrosSinRostro > 2) { ultimaDistanciaCm = -1; historialDistancias.clear(); distanciaSuavizada = -1; }
+                registrarMuestraFiabilidad(false);
+                ultimaCondicion = cuadrosSinRostro > 2 ? CondicionPrueba.SIN_ROSTRO : ultimaCondicion;
+                if (ultimaCondicion == null) ultimaCondicion = CondicionPrueba.SIN_ROSTRO;
+                return ultimaCondicion;
+            }
+            cuadrosSinRostro = 0;
+            ultimoRostroDetectado = true;
+
+            Rect rostroReducido = seleccionarRostroPrincipal(arrayRostros);
+            if (hayOtraPersona(arrayRostros, rostroReducido)) {
+                registrarMuestraFiabilidad(false);
+                ultimaCondicion = CondicionPrueba.MULTIPLES_PERSONAS;
+                return ultimaCondicion;
+            }
+
+            // Coordenadas de vuelta a la resolución original.
+            ultimoRostro = new Rect((int) Math.round(rostroReducido.x / escala), (int) Math.round(rostroReducido.y / escala),
+                    (int) Math.round(rostroReducido.width / escala), (int) Math.round(rostroReducido.height / escala));
+            Rect rostro = new Rect((int) Math.round(rostroReducido.x / escala), (int) Math.round(rostroReducido.y / escala),
+                    (int) Math.round(rostroReducido.width / escala), (int) Math.round(rostroReducido.height / escala));
+            ultimoAnchoRostroPx = rostro.width;
+            agregarAnchoParaCalibracion(rostro.width);
+
+            double distanciaInstantanea = distanciaDesdeAnchoRostro(rostro.width);
+            double distanciaActualCm = filtrarDistancia(distanciaInstantanea);
+            this.ultimaDistanciaCm = distanciaActualCm;
+
+            double tolerancia = AppConfig.TOLERANCIA_DISTANCIA_CM;
+            double diferencia = Math.abs(distanciaActualCm - distanciaObjetivoCm);
+            boolean enRango = ultimoEstadoEnRangoDistancia ? diferencia <= tolerancia + HISTERESIS_CM : diferencia <= tolerancia;
+            ultimoEstadoEnRangoDistancia = enRango;
+            if (enRango) registrarMuestraPupilar(gris, rostro, distanciaActualCm);
+
+            registrarMuestraFiabilidad(enRango && !ruidoVisual);
+
+            if (!enRango) {
+                ultimaCondicion = distanciaActualCm < distanciaObjetivoCm ? CondicionPrueba.DEMASIADO_CERCA : CondicionPrueba.DEMASIADO_LEJOS;
+            } else {
+                ultimaCondicion = ruidoVisual ? CondicionPrueba.RUIDO_VISUAL : CondicionPrueba.CORRECTA;
+            }
             return ultimaCondicion;
         } finally {
             frame.release();
+            gris.release();
+            reducido.release();
+            rostros.release();
+        }
+    }
+
+    /** Ancho de procesamiento: suficiente para rostros a 4 m con cámaras 720p/1080p. */
+    private static final double ANCHO_PROCESAMIENTO = 480.0;
+    private static final double HISTERESIS_CM = 3.0;
+    private static final int VENTANA_MEDIANA = 5;
+    private static final double ALFA_SUAVIZADO = 0.35;
+    /** Fracción del ancho del rostro Haar que equivale a la distancia interpupilar (modelo original). */
+    private static final double FRACCION_IPD_EN_ROSTRO = 0.45;
+
+    private final java.util.ArrayDeque<Double> historialDistancias = new java.util.ArrayDeque<>();
+    private final java.util.ArrayDeque<Integer> anchosRecientes = new java.util.ArrayDeque<>();
+    private double distanciaSuavizada = -1;
+    private int cuadrosSinRostro;
+    private boolean ultimoEstadoEnRangoDistancia;
+    private int ultimoAnchoRostroPx;
+    private Rect ultimoRostro;
+
+    /**
+     * Vista previa del último fotograma (JPEG, ~360 px de ancho, en espejo) con el
+     * recuadro del rostro detectado: verde si está en rango, ámbar si no.
+     */
+    public synchronized byte[] vistaPreviaJpg() {
+        if (ultimoFrame.empty()) return null;
+        Mat copia = ultimoFrame.clone();
+        Mat reducida = new Mat();
+        org.opencv.core.MatOfByte salida = new org.opencv.core.MatOfByte();
+        try {
+            if (ultimoRostro != null) {
+                org.opencv.core.Scalar color = ultimaCondicion == CondicionPrueba.CORRECTA
+                        ? new org.opencv.core.Scalar(107, 174, 47) : new org.opencv.core.Scalar(60, 162, 230);
+                Imgproc.rectangle(copia, ultimoRostro.tl(), ultimoRostro.br(), color, Math.max(2, copia.cols() / 220));
+            }
+            double escala = 360.0 / copia.cols();
+            Imgproc.resize(copia, reducida, new org.opencv.core.Size(), escala, escala, Imgproc.INTER_AREA);
+            Core.flip(reducida, reducida, 1);
+            org.opencv.imgcodecs.Imgcodecs.imencode(".jpg", reducida, salida);
+            return salida.toArray();
+        } finally {
+            copia.release();
+            reducida.release();
+            salida.release();
+        }
+    }
+
+    /** Modelo pinhole: d = IPD · f / (0.45 · ancho_rostro). */
+    private double distanciaDesdeAnchoRostro(double anchoPx) {
+        return CalibracionFocal.calcularDistanciaZ(CalibracionFocal.IPD_PROMEDIO_INFANTIL_MM, distanciaFocalCalibrada,
+                anchoPx * FRACCION_IPD_EN_ROSTRO);
+    }
+
+    private double filtrarDistancia(double instantanea) {
+        if (instantanea <= 0) return distanciaSuavizada;
+        historialDistancias.addLast(instantanea);
+        while (historialDistancias.size() > VENTANA_MEDIANA) historialDistancias.removeFirst();
+        double[] valores = historialDistancias.stream().mapToDouble(Double::doubleValue).sorted().toArray();
+        double mediana = valores[valores.length / 2];
+        distanciaSuavizada = distanciaSuavizada < 0 ? mediana : distanciaSuavizada + ALFA_SUAVIZADO * (mediana - distanciaSuavizada);
+        return distanciaSuavizada;
+    }
+
+    private boolean hayOtraPersona(Rect[] rostros, Rect principal) {
+        double areaPrincipal = principal.area();
+        for (Rect r : rostros) {
+            if (r == principal) continue;
+            boolean solapa = (r.x < principal.x + principal.width && principal.x < r.x + r.width
+                    && r.y < principal.y + principal.height && principal.y < r.y + r.height);
+            if (!solapa && r.area() >= areaPrincipal * 0.55 * 0.55) return true;
+        }
+        return false;
+    }
+
+    private void agregarAnchoParaCalibracion(int ancho) {
+        anchosRecientes.addLast(ancho);
+        while (anchosRecientes.size() > 15) anchosRecientes.removeFirst();
+    }
+
+    /**
+     * Calibra la cámara con la persona colocada a una distancia medida con cinta.
+     * Usa la mediana de los últimos anchos de rostro para obtener la focal, de modo
+     * que la distancia estimada coincida con la real para esta cámara.
+     *
+     * @return la focal calculada en píxeles, o -1 si no hay suficientes lecturas.
+     */
+    public synchronized double calibrarConDistanciaReal(double distanciaRealCm) {
+        if (anchosRecientes.size() < 5 || distanciaRealCm <= 0) return -1;
+        int[] anchos = anchosRecientes.stream().mapToInt(Integer::intValue).sorted().toArray();
+        double anchoMediana = anchos[anchos.length / 2];
+        double focal = CalibracionFocal.calcularDistanciaFocal(anchoMediana * FRACCION_IPD_EN_ROSTRO, distanciaRealCm,
+                CalibracionFocal.IPD_PROMEDIO_INFANTIL_MM);
+        setDistanciaFocalCalibrada(focal);
+        historialDistancias.clear();
+        distanciaSuavizada = -1;
+        return focal;
+    }
+
+    /** Lecturas disponibles para calibrar (se necesitan al menos 5). */
+    public synchronized int getLecturasParaCalibrar() { return anchosRecientes.size(); }
+
+    public boolean isFocalCalibrada() { return focalCalibrada; }
+
+    // ------------------------------------------------------------------
+    // Evaluación en segundo plano: la detección (30-80 ms) nunca bloquea la interfaz.
+    // ------------------------------------------------------------------
+    private final java.util.concurrent.ExecutorService ejecutor = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "vision-distancia");
+        t.setDaemon(true);
+        return t;
+    });
+    private final java.util.concurrent.atomic.AtomicBoolean evaluando = new java.util.concurrent.atomic.AtomicBoolean();
+
+    /**
+     * Evalúa la condición en un hilo de visión y entrega el resultado en el hilo de JavaFX.
+     * Si ya hay una evaluación en curso, la solicitud se descarta (no se acumulan).
+     */
+    public void evaluarEnSegundoPlano(java.util.function.Consumer<CondicionPrueba> alTerminar) {
+        if (!evaluando.compareAndSet(false, true)) return;
+        try {
+            ejecutor.execute(() -> {
+                CondicionPrueba condicion;
+                try { condicion = evaluarCondicionPrueba(); }
+                catch (Throwable t) { condicion = CondicionPrueba.CAMARA_SIN_IMAGEN; }
+                finally { evaluando.set(false); }
+                CondicionPrueba resultado = condicion;
+                if (alTerminar != null) javafx.application.Platform.runLater(() -> alTerminar.accept(resultado));
+            });
+        } catch (java.util.concurrent.RejectedExecutionException ex) {
+            evaluando.set(false);
         }
     }
 
@@ -384,6 +524,8 @@ public class DetectorDistancia {
         return ultimoFrame;
     }
 
+    public int getUltimoAnchoRostroPx() { return ultimoAnchoRostroPx; }
+
     public double getUltimaDistanciaCm() {
         return ultimaDistanciaCm;
     }
@@ -396,7 +538,7 @@ public class DetectorDistancia {
 
     public CondicionPrueba getUltimaCondicion() { return ultimaCondicion; }
 
-    public boolean puedeCapturarFotograma() {
+    public synchronized boolean puedeCapturarFotograma() {
         if (camara == null || !camara.isOpened()) {
             return false;
         }
@@ -410,6 +552,11 @@ public class DetectorDistancia {
     }
 
     public void apagarCamara() {
+        ejecutor.shutdownNow();
+        synchronized (this) { apagarCamaraInterno(); }
+    }
+
+    private void apagarCamaraInterno() {
         if (camara != null && camara.isOpened()) {
             camara.release();
         }

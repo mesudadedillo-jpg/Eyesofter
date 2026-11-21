@@ -8,6 +8,13 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextInputDialog;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import com.eyesofter.voz.ReconocedorOptotipos;
+
+import java.io.ByteArrayInputStream;
+import java.util.Locale;
 import javafx.scene.shape.Circle;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -22,6 +29,10 @@ public class ControladorCalibracionPosicion implements ControladorDeVista {
     @FXML private Circle luzAmarilla;
     @FXML private Circle luzVerde;
     @FXML private Button btnContinuar;
+    @FXML private Button btnCamara;
+    @FXML private Button btnCalibrar;
+    @FXML private ImageView vistaCamara;
+    @FXML private Label lblSinVista;
 
     private Stage stage;
     private DetectorDistancia detector;
@@ -36,12 +47,15 @@ public class ControladorCalibracionPosicion implements ControladorDeVista {
     public void setStage(Stage stage) {
         this.stage = stage;
         double distancia = SesionEvaluacion.getDistanciaMetros();
-        lblObjetivo.setText(String.format("Distancia objetivo: %.1f m", distancia));
+        lblObjetivo.setText(String.format(Locale.US, "Distancia objetivo: %.1f m", distancia));
+        apagarLuces();
         // La cámara es opcional. No se abre automáticamente porque algunos
         // controladores de Windows devuelven errores RPC al reservarla.
         btnContinuar.setDisable(false);
         lblEstadoCamara.setText("Medición por cámara opcional.");
-        lblIndicacion.setText("Puede iniciar el tamizaje en modo manual o activar la cámara con “Reintentar cámara”.");
+        lblIndicacion.setText("Puede iniciar el tamizaje sin cámara o activarla para vigilar la distancia automáticamente.");
+        // Mientras se coloca a la persona, el modelo de voz se carga en segundo plano.
+        ReconocedorOptotipos.precargarEnSegundoPlano();
     }
 
     private void iniciarDetector() {
@@ -62,7 +76,11 @@ public class ControladorCalibracionPosicion implements ControladorDeVista {
 
         tarea.setOnSucceeded(evento -> {
             detector = tarea.getValue();
-            lblEstadoCamara.setText("Cámara activa. Mantenga el rostro centrado en el encuadre.");
+            btnCamara.setText("📷 Reiniciar cámara");
+            btnCalibrar.setDisable(false);
+            lblEstadoCamara.setText(detector.isFocalCalibrada()
+                    ? "Cámara activa y calibrada. Mantenga el rostro centrado."
+                    : "Cámara activa SIN calibrar: coloque a la persona a la distancia objetivo (mídala con cinta) y presione “Calibrar a esta distancia”.");
             iniciarLectura();
         });
 
@@ -81,18 +99,55 @@ public class ControladorCalibracionPosicion implements ControladorDeVista {
         hilo.start();
     }
 
+    /** La lectura se hace en el hilo de visión; la interfaz solo pinta el resultado. */
     private void iniciarLectura() {
-        lectura = new Timeline(new KeyFrame(Duration.millis(700), evento -> {
-            if (detector == null) return;
-
-            // Timeline ya se ejecuta en el hilo de JavaFX, así que procesamos y actualizamos directamente
-            boolean enRango = detector.validarPosicionPaciente();
-            double cm = detector.getUltimaDistanciaCm();
-
-            actualizarLectura(enRango, cm);
+        lectura = new Timeline(new KeyFrame(Duration.millis(400), evento -> {
+            DetectorDistancia actual = detector;
+            if (actual == null) return;
+            actual.evaluarEnSegundoPlano(condicion -> {
+                if (detector != actual) return;
+                actualizarLectura(condicion == DetectorDistancia.CondicionPrueba.CORRECTA
+                        || condicion == DetectorDistancia.CondicionPrueba.RUIDO_VISUAL, actual.getUltimaDistanciaCm());
+                if (condicion == DetectorDistancia.CondicionPrueba.MULTIPLES_PERSONAS)
+                    lblIndicacion.setText("Se detectan varias personas: solo la persona evaluada debe estar frente a la cámara.");
+                byte[] jpg = actual.vistaPreviaJpg();
+                if (jpg != null) {
+                    vistaCamara.setImage(new Image(new ByteArrayInputStream(jpg)));
+                    lblSinVista.setVisible(false);
+                }
+            });
         }));
         lectura.setCycleCount(Timeline.INDEFINITE);
         lectura.play();
+    }
+
+    /**
+     * Calibración de la cámara: con la persona a una distancia medida con cinta,
+     * se calcula la focal que hace coincidir la estimación con la realidad y se guarda.
+     */
+    @FXML
+    private void calibrarDistancia() {
+        if (detector == null) return;
+        if (detector.getLecturasParaCalibrar() < 5) {
+            lblIndicacion.setText("Aún no hay suficientes lecturas del rostro. Espere un par de segundos frente a la cámara.");
+            return;
+        }
+        TextInputDialog dialogo = new TextInputDialog(String.format(Locale.US, "%.2f", SesionEvaluacion.getDistanciaMetros()));
+        dialogo.setHeaderText("Calibrar la cámara");
+        dialogo.setContentText("Distancia real medida con cinta (metros), de los ojos a la pantalla:");
+        dialogo.showAndWait().ifPresent(texto -> {
+            try {
+                double metros = Double.parseDouble(texto.replace(',', '.').trim());
+                if (metros < 0.3 || metros > 7) throw new NumberFormatException();
+                double focal = detector.calibrarConDistanciaReal(metros * 100.0);
+                if (focal <= 0) { lblIndicacion.setText("No se pudo calibrar: no se detecta el rostro con estabilidad."); return; }
+                AppConfig.DISTANCIA_FOCAL_CAMARA_PX = focal;
+                AppConfig.guardar();
+                lblEstadoCamara.setText(String.format(Locale.US, "Cámara calibrada (focal %.0f px). La calibración queda guardada para este equipo.", focal));
+            } catch (NumberFormatException ex) {
+                lblIndicacion.setText("Escriba una distancia válida en metros, por ejemplo 1.5");
+            }
+        });
     }
 
     private void actualizarLectura(boolean enRango, double centimetros) {
@@ -106,7 +161,7 @@ public class ControladorCalibracionPosicion implements ControladorDeVista {
             return;
         }
 
-        lblDistanciaActual.setText(String.format("%.2f m", centimetros / 100.0));
+        lblDistanciaActual.setText(String.format(Locale.US, "%.2f m", centimetros / 100.0));
         double diferencia = Math.abs(centimetros / 100.0 - SesionEvaluacion.getDistanciaMetros());
 
         if (enRango) {
