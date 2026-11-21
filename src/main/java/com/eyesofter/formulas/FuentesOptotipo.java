@@ -34,8 +34,49 @@ public final class FuentesOptotipo {
         return FACTOR_POR_FUENTE.keySet().toArray(new String[0]);
     }
 
+    /**
+     * Si es true, el factor se mide sobre la tipografía que JavaFX realmente dibuja.
+     * Lo activa la aplicación al arrancar; en pruebas automáticas (sin pantalla) se
+     * usa la tabla. Importa porque si la fuente no está instalada (p. ej. Arial en
+     * Linux) JavaFX usa otra con distinta altura de mayúscula y las letras saldrían
+     * de otro tamaño sin que nadie lo note.
+     */
+    private static volatile boolean medirEnPantalla;
+    private static final Map<String, Double> FACTOR_MEDIDO = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static void activarMedicionEnPantalla() { medirEnPantalla = true; }
+
     /** Devuelve el factor de corrección de la fuente, o 0.716 (Arial) si no está catalogada. */
     public static double factorDeCorreccion(String nombreFuente) {
+        if (medirEnPantalla && nombreFuente != null) {
+            Double medido = FACTOR_MEDIDO.computeIfAbsent(nombreFuente, FuentesOptotipo::medirFactor);
+            if (medido > 0) return medido;
+        }
         return FACTOR_POR_FUENTE.getOrDefault(nombreFuente, 0.716);
+    }
+
+    /** Altura de tinta de la "E" mayúscula ÷ tamaño de fuente, medida con JavaFX. -1 si falla. */
+    private static double medirFactor(String nombreFuente) {
+        try {
+            final double tamanio = 1000.0;
+            javafx.scene.text.Text texto = new javafx.scene.text.Text("E");
+            // Mismo peso que usa la prueba (CSS font-weight 900).
+            texto.setFont(javafx.scene.text.Font.font(nombreFuente, javafx.scene.text.FontWeight.BLACK, tamanio));
+            texto.setBoundsType(javafx.scene.text.TextBoundsType.VISUAL);
+            double factor = texto.getLayoutBounds().getHeight() / tamanio;
+            return factor > 0.5 && factor < 0.95 ? factor : -1;
+        } catch (Throwable t) {
+            return -1;
+        }
+    }
+
+    /** ¿La familia está instalada en este equipo? Si no se puede comprobar, se asume que sí. */
+    public static boolean estaInstalada(String nombreFuente) {
+        if (nombreFuente == null) return false;
+        try {
+            return javafx.scene.text.Font.getFamilies().contains(nombreFuente);
+        } catch (Throwable t) {
+            return true;
+        }
     }
 }

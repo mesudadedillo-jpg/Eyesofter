@@ -101,7 +101,7 @@ public class ControladorHerramientas implements VistaAdministrativa {
         Screen p = Screen.getPrimary();
         return String.format(Locale.US, "PPI configurado: %.1f · diagonal: %.1f in · escalado de Windows: %.0f %% · cámara: %s",
                 AppConfig.PPI_ESTANDAR_MONITOR, AppConfig.MONITOR_DIAGONAL_PULGADAS, p.getOutputScaleX() * 100,
-                AppConfig.DISTANCIA_FOCAL_CAMARA_PX > 0 ? "calibrada" : "sin calibrar");
+                AppConfig.FOCAL_CAMARA_NORMALIZADA > 0 ? "calibrada" : "sin calibrar");
     }
 
     private VBox tarjetaConvertidor() {

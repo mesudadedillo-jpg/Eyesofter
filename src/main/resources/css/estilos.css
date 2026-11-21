@@ -372,7 +372,9 @@
     -fx-font-weight: 900;
     -fx-text-fill: #000000;
 }
-.optotipo-individual { -fx-font-weight: 900; -fx-text-fill: #000000; -fx-padding: 8px 12px; -fx-border-color: transparent transparent #FFFFFF transparent; -fx-border-width: 0 0 5px 0; }
+/* Sin relleno horizontal: el espacio entre optotipos lo fija el código (1 optotipo de ancho).
+   Un relleno fijo de 24 px separaba más las letras pequeñas y las hacía más fáciles de leer. */
+.optotipo-individual { -fx-font-weight: 900; -fx-text-fill: #000000; -fx-padding: 8px 0px; -fx-border-color: transparent transparent #FFFFFF transparent; -fx-border-width: 0 0 5px 0; }
 .optotipo-activo { -fx-border-color: transparent transparent #164E59 transparent; -fx-background-color: #E8F5F7; -fx-background-radius: 10px; }
 .optotipo-acierto { -fx-text-fill: #13733D; -fx-border-color: transparent transparent #2FAE6B transparent; }
 .optotipo-error { -fx-text-fill: #B42318; -fx-border-color: transparent transparent #E05A4F transparent; }
@@ -580,3 +582,7 @@
 .semaforo-verde { -fx-background-color: #DDF7E8; -fx-text-fill: #0B5D2E; }
 .semaforo-amarillo { -fx-background-color: #FEF3C7; -fx-text-fill: #6B3E00; }
 .semaforo-rojo { -fx-background-color: #FCE4E2; -fx-text-fill: #8F1D14; }
+
+/* Desplazamiento sin fondo propio. No usar -fx-background: transparent: JavaFX deriva de él el
+   color de texto de casillas y reglas, que se volvería invisible. */
+.scroll-transparente, .scroll-transparente > .viewport { -fx-background-color: transparent; }

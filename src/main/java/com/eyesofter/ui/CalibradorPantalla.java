@@ -39,7 +39,8 @@ public final class CalibradorPantalla {
 
     /** Abre el asistente. @return PPI físico medido, o vacío si se canceló. */
     public static OptionalDouble medir(Window propietario) {
-        Screen pantalla = Screen.getPrimary();
+        // Se mide en la pantalla donde está la aplicación (antes, siempre en la principal).
+        Screen pantalla = IdentidadPantalla.deVentana(propietario);
         double escala = pantalla.getOutputScaleX() > 0 ? pantalla.getOutputScaleX() : 1.0;
         double ppiInicial = AppConfig.PPI_ESTANDAR_MONITOR > 0 ? AppConfig.PPI_ESTANDAR_MONITOR : 96;
         double anchoInicialLogico = ANCHO_TARJETA_MM / TrigonometriaVisual.MM_POR_PULGADA * ppiInicial / escala;
@@ -120,6 +121,9 @@ public final class CalibradorPantalla {
             if (e.getCode() == KeyCode.RIGHT) control.setValue(control.getValue() + (e.isShiftDown() ? 5 : 0.5));
         });
         ventana.setScene(escena);
+        javafx.geometry.Rectangle2D zonaVisible = pantalla.getVisualBounds();
+        ventana.setX(zonaVisible.getMinX() + Math.max(0, (zonaVisible.getWidth() - 1000) / 2));
+        ventana.setY(zonaVisible.getMinY() + Math.max(0, (zonaVisible.getHeight() - 760) / 2));
         ventana.showAndWait();
         return Double.isNaN(resultado[0]) ? OptionalDouble.empty() : OptionalDouble.of(resultado[0]);
     }
@@ -129,7 +133,9 @@ public final class CalibradorPantalla {
         OptionalDouble ppi = medir(propietario);
         if (ppi.isPresent()) {
             AppConfig.PPI_ESTANDAR_MONITOR = Math.round(ppi.getAsDouble() * 10) / 10.0;
-            Screen p = Screen.getPrimary();
+            Screen p = IdentidadPantalla.deVentana(propietario);
+            AppConfig.METODO_PPI = "TARJETA";
+            AppConfig.PANTALLA_CALIBRADA = IdentidadPantalla.de(p);
             double anchoFisico = p.getBounds().getWidth() * p.getOutputScaleX();
             double altoFisico = p.getBounds().getHeight() * p.getOutputScaleY();
             AppConfig.MONITOR_DIAGONAL_PULGADAS = Math.round(Math.hypot(anchoFisico, altoFisico) / ppi.getAsDouble() * 10) / 10.0;

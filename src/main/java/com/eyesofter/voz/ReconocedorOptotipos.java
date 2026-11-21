@@ -45,7 +45,8 @@ import java.util.Set;
  */
 public class ReconocedorOptotipos {
 
-    public enum ModoPrueba { SNELLEN, ISHIHARA }
+    /** DIRECCIONES: E direccional ("arriba", "abajo", "izquierda", "derecha"). */
+    public enum ModoPrueba { SNELLEN, ISHIHARA, DIRECCIONES }
 
     /** El paciente indica que no distingue ningún número (Ishihara). */
     public static final String RESPUESTA_NADA = "NADA";
@@ -83,6 +84,15 @@ public class ReconocedorOptotipos {
         FORMAS_LETRAS.put("Z", new String[]{"zeta", "seta", "ceta", "zeda"});
     }
 
+    /** Direcciones de la E: el código coincide con MotorSnellen.E_*. */
+    private static final Map<String, String[]> FORMAS_DIRECCIONES = new LinkedHashMap<>();
+    static {
+        FORMAS_DIRECCIONES.put("ARRIBA", new String[]{"arriba", "riba", "para arriba", "pa arriba", "hacia arriba"});
+        FORMAS_DIRECCIONES.put("ABAJO", new String[]{"abajo", "bajo", "para abajo", "pa abajo", "hacia abajo"});
+        FORMAS_DIRECCIONES.put("IZQUIERDA", new String[]{"izquierda", "a la izquierda", "quierda"});
+        FORMAS_DIRECCIONES.put("DERECHA", new String[]{"derecha", "a la derecha", "derecho"});
+    }
+
     private static final Map<String, String[]> FORMAS_NUMEROS = new LinkedHashMap<>();
     static {
         FORMAS_NUMEROS.put("2", new String[]{"dos"});
@@ -112,6 +122,8 @@ public class ReconocedorOptotipos {
 
     private static final String VOCABULARIO_SNELLEN = construirGramatica(FORMAS_LETRAS,
             "no", "se", "lo", "la", "veo", "paso", "siguiente", "este", "letra", "es", "una", "creo", "que");
+    private static final String VOCABULARIO_DIRECCIONES = construirGramatica(FORMAS_DIRECCIONES,
+            "no", "se", "lo", "la", "veo", "paso", "siguiente", "para", "pa", "hacia", "a", "creo", "que");
     private static final String VOCABULARIO_ISHIHARA = construirGramatica(FORMAS_NUMEROS,
             "nada", "ninguno", "no", "se", "hay", "veo", "numero", "es", "el", "este", "creo", "que", "y");
 
@@ -163,7 +175,11 @@ public class ReconocedorOptotipos {
     public synchronized void setModo(ModoPrueba nuevoModo) {
         if (nuevoModo == modoActual && recognizer != null) return;
         this.modoActual = nuevoModo;
-        String vocabulario = (nuevoModo == ModoPrueba.SNELLEN) ? VOCABULARIO_SNELLEN : VOCABULARIO_ISHIHARA;
+        String vocabulario = switch (nuevoModo) {
+            case SNELLEN -> VOCABULARIO_SNELLEN;
+            case DIRECCIONES -> VOCABULARIO_DIRECCIONES;
+            default -> VOCABULARIO_ISHIHARA;
+        };
         try {
             if (this.recognizer != null) this.recognizer.close();
             this.recognizer = new Recognizer(this.model, 16000, vocabulario);
@@ -369,6 +385,20 @@ public class ReconocedorOptotipos {
         return String.join(",", letras);
     }
 
+    /** Una o varias direcciones habladas ("arriba", "para abajo") → "ARRIBA" o "ARRIBA,ABAJO". */
+    private static String mapearDirecciones(String texto) {
+        String limpio = (" " + texto + " ").replace(" para ", " ").replace(" pa ", " ").replace(" hacia ", " ")
+                .replace(" a la ", " ").replace(" creo que ", " ").trim();
+        if (limpio.isEmpty()) return RUIDO;
+        List<String> direcciones = new ArrayList<>();
+        for (String palabra : limpio.split(" ")) {
+            if (NO_SON_LETRAS.contains(palabra)) continue;
+            String d = mejorCoincidencia(palabra, FORMAS_DIRECCIONES, 2);
+            if (d != null) direcciones.add(d);
+        }
+        return direcciones.isEmpty() ? RUIDO : String.join(",", direcciones);
+    }
+
     private static String mapearNumero(String texto) {
         if (texto.isEmpty()) return RUIDO;
         String exacto = coincidenciaExacta(texto, FORMAS_NUMEROS);
@@ -451,6 +481,7 @@ public class ReconocedorOptotipos {
             for (String frase : FRASES_NADA) if (limpio.contains(frase)) return RESPUESTA_NADA;
             return mapearNumero(sinMuletillas(limpio));
         }
+        if (modo == ModoPrueba.DIRECCIONES) return mapearDirecciones(limpio);
         return mapearLetras(sinMuletillas(limpio));
     }
 }

@@ -146,7 +146,11 @@ public class ControladorRegistro {
             GestorBaseDatos.registrarPaciente(curpA, nombreA, fechaNacA, gradoA, curpT);
             com.eyesofter.sincronizacion.ColaSincronizacion.guardarMatricula(curpA, txtMatricula.getText());
 
-            SesionEvaluacion.iniciar(curpA, nombreA, gradoA);
+            SesionEvaluacion.iniciar(curpA, nombreA, gradoA, fechaNacA);
+            // Sin fecha ni CURP válida: se usa la edad escrita a mano (afecta optotipo, DP y criterios).
+            if (!Double.isFinite(SesionEvaluacion.getEdadAnios())) {
+                try { SesionEvaluacion.registrarEdadCapturada(Double.parseDouble(txtEdad.getText().trim())); } catch (Exception ignored) { }
+            }
             SesionEvaluacion.configurarModo(modo);
             System.out.println("[DB EXITOSA]: paciente y responsable registrados.");
 

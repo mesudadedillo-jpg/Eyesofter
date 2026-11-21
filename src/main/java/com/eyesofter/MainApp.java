@@ -25,6 +25,7 @@ public class MainApp extends Application {
         instalarEstiloVentanasEmergentes();
         // Las frases de la voz guía se sintetizan en segundo plano y quedan en caché.
         com.eyesofter.config.AppConfig.cargar();
+        com.eyesofter.formulas.FuentesOptotipo.activarMedicionEnPantalla();
         com.eyesofter.voz.VozGuia.precalentar();
 
         try {

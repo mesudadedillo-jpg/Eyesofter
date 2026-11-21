@@ -2,6 +2,7 @@ package com.eyesofter.reportes;
 
 import com.eyesofter.db.GestorBaseDatos.EvaluacionInfo;
 import com.eyesofter.db.GestorBaseDatos.PacienteInfo;
+import com.eyesofter.formulas.TrigonometriaVisual;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -145,8 +146,15 @@ public final class GeneradorPDF {
                         + "  (" + entero(e == null ? 0 : e.muestrasDistancia) + " muestras)"},
                 {"Tiempo de respuesta promedio", segundos(e == null ? null : e.tiempoRespuestaMs)},
                 {"Método de entrada", valor(e == null ? null : e.metodoEntrada)},
+                {"Edad al evaluar", e == null || e.edadAnios == null ? "N/D" : String.format(Locale.US, "%.1f años", e.edadAnios)},
+                {"Optotipo", valor(e == null ? null : e.tipoOptotipo)},
+                {"Límite medible de la pantalla", e == null || e.limitePantallaLogmar == null ? "N/D"
+                        : String.format(Locale.US, "LogMAR %.1f (%s)", e.limitePantallaLogmar, TrigonometriaVisual.snellenDesdeLogMAR(e.limitePantallaLogmar))},
                 {"Control acústico histórico (WER)", e == null ? "N/D" : String.format(Locale.US, "%.2f", e.tasaRuidoWer)}
         });
+        if (e != null && e.condicionesPrueba != null && !e.condicionesPrueba.isBlank()) {
+            textoEnvuelto(p, "Condiciones del equipo", e.condicionesPrueba, 9.4f, GRIS);
+        }
         p.y -= 10;
     }
 
@@ -195,8 +203,11 @@ public final class GeneradorPDF {
                 "- La conversión a LogMAR se calcula como log10(denominador Snellen / 20).",
                 "- El banco digital actual contiene 5 láminas Ishihara de apoyo. Puede señalar respuestas compatibles con una alteración rojo-verde, pero no permite determinar con validez clínica Protan/Deutan ni severidad; para ello se requiere una edición estandarizada y pruebas confirmatorias.",
                 "- La condición de corrección óptica habitual no se registra en este formato; las cifras no deben interpretarse como agudeza visual con mejor corrección.",
-                "- La distancia se reporta como objetivo configurado, tolerancia configurada y porcentaje de muestras en rango; no es una certificación metrológica de la distancia real.",
-                "- La DP solo se muestra cuando se detectaron ambos ojos durante al menos tres muestras y la focal de cámara fue calibrada.",
+                "- La distancia se reporta como objetivo configurado, tolerancia, porcentaje de muestras en rango y, con cámara, la distancia real promedio estimada; no es una certificación metrológica.",
+                "- Con cámara, la distancia se estima con la separación de los ojos y la distancia interpupilar (DP) del paciente: medida con cinta, capturada o estimada por su edad (variación natural +/- 6 %).",
+                "- La DP solo se informa cuando se midió en la sesión con cinta y la cámara calibrada; la estimada por edad no es una medición.",
+                "- Las filas cuyo optotipo mide menos de 5 píxeles físicos no se muestran; si la persona leyó la fila más pequeña posible, su agudeza real puede ser mejor.",
+                "- Criterios pediátricos de referencia (AAPOS/AAP 2016): 3 años 20/50, 4 años 20/40, 5 años o más 20/32, o 2 líneas de diferencia entre ojos.",
                 "- Referencias: ETDRS/LogMAR (Bailey y Lovie; escala por letra 0.02 LogMAR); AAO EyeWiki, Visual Acuity Testing in Adults; OMS, Vision and eye screening implementation handbook, 2024; Birch, Efficiency of the Ishihara test for identifying red-green colour deficiency, 1997."
         };
         for (String nota : notas) {
@@ -454,11 +465,24 @@ public final class GeneradorPDF {
             cs.setStrokingColor(color); cs.setLineWidth(grosor); cs.moveTo(x1, y1); cs.lineTo(x2, y2); cs.stroke();
         }
         void texto(String texto, float x, float y, PDFont fuente, float tamano) throws IOException {
-            cs.beginText(); cs.setFont(fuente, tamano); cs.newLineAtOffset(x, y); cs.showText(sanitizar(texto)); cs.endText();
+            cs.beginText(); cs.setFont(fuente, tamano); cs.newLineAtOffset(x, y); cs.showText(codificable(fuente, sanitizar(texto))); cs.endText();
         }
         void cerrar() throws IOException { cs.close(); }
+        /** Las fuentes estándar del PDF solo tienen WinAnsi: un "≥" o "⚠" haría fallar todo el informe. */
+        private String codificable(PDFont fuente, String texto) {
+            StringBuilder sb = new StringBuilder(texto.length());
+            for (int i = 0; i < texto.length(); ) {
+                int cp = texto.codePointAt(i);
+                String c = new String(Character.toChars(cp));
+                try { fuente.encode(c); sb.append(c); } catch (Exception ex) { sb.append('?'); }
+                i += Character.charCount(cp);
+            }
+            return sb.toString();
+        }
+
         private String sanitizar(String texto) {
-            return valor(texto).replace('–', '-').replace('—', '-').replace('“', '"').replace('”', '"');
+            return valor(texto).replace('–', '-').replace('—', '-').replace('“', '"').replace('”', '"')
+                    .replace("≥", ">=").replace("≤", "<=").replace("→", "->").replace("⚠", "!").replace("✓", "OK").replace("✗", "X");
         }
     }
 }

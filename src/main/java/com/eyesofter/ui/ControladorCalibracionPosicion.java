@@ -70,6 +70,7 @@ public class ControladorCalibracionPosicion implements ControladorDeVista {
                 // Si la ruta o la DLL fallan, lanzará una excepción aquí
                 DetectorDistancia nuevo = new DetectorDistancia(AppConfig.RUTA_MODELO_OPENCV);
                 nuevo.setDistanciaObjetivo(SesionEvaluacion.getDistanciaMetros() * 100.0);
+                nuevo.setDpPacienteMm(SesionEvaluacion.getDpPaciente());
                 return nuevo;
             }
         };
@@ -78,9 +79,12 @@ public class ControladorCalibracionPosicion implements ControladorDeVista {
             detector = tarea.getValue();
             btnCamara.setText("📷 Reiniciar cámara");
             btnCalibrar.setDisable(false);
+            String metodo = detector.getMetodo() == DetectorDistancia.Metodo.OJOS ? "" : " (método de respaldo: falta el modelo YuNet)";
             lblEstadoCamara.setText(detector.isFocalCalibrada()
-                    ? "Cámara activa y calibrada. Mantenga el rostro centrado."
-                    : "Cámara activa SIN calibrar: coloque a la persona a la distancia objetivo (mídala con cinta) y presione “Calibrar a esta distancia”.");
+                    ? String.format(Locale.US, "Cámara activa y calibrada%s. DP usada: %.1f mm (%s).", metodo,
+                        SesionEvaluacion.getDpPaciente(), SesionEvaluacion.getFuenteDp())
+                    : "Cámara activa SIN calibrar" + metodo + ": la distancia es aproximada (±15 %). Coloque a la persona a la distancia objetivo, "
+                        + "mídala con cinta y presione “Calibrar a esta distancia”. Sin cinta: 4 hojas tamaño carta a lo largo miden 1.12 m.");
             iniciarLectura();
         });
 
@@ -139,15 +143,46 @@ public class ControladorCalibracionPosicion implements ControladorDeVista {
             try {
                 double metros = Double.parseDouble(texto.replace(',', '.').trim());
                 if (metros < 0.3 || metros > 7) throw new NumberFormatException();
-                double focal = detector.calibrarConDistanciaReal(metros * 100.0);
+                if (detector.isFocalCalibrada() && !elegirRecalibrar()) {
+                    medirDpDelPaciente(metros);
+                    return;
+                }
+                double focal = detector.calibrarConDistanciaReal(metros * 100.0, SesionEvaluacion.getDpPaciente());
                 if (focal <= 0) { lblIndicacion.setText("No se pudo calibrar: no se detecta el rostro con estabilidad."); return; }
-                AppConfig.DISTANCIA_FOCAL_CAMARA_PX = focal;
+                AppConfig.FOCAL_CAMARA_NORMALIZADA = focal;
+                AppConfig.METODO_FOCAL_CAMARA = detector.getMetodo().name();
                 AppConfig.guardar();
-                lblEstadoCamara.setText(String.format(Locale.US, "Cámara calibrada (focal %.0f px). La calibración queda guardada para este equipo.", focal));
+                SesionEvaluacion.registrarCalibracionConPaciente();
+                lblEstadoCamara.setText(String.format(Locale.US,
+                        "Cámara calibrada con DP %.1f mm (%s). Queda guardada para este equipo; para este paciente la distancia ya es exacta.",
+                        SesionEvaluacion.getDpPaciente(), SesionEvaluacion.getFuenteDp()));
             } catch (NumberFormatException ex) {
                 lblIndicacion.setText("Escriba una distancia válida en metros, por ejemplo 1.5");
             }
         });
+    }
+
+    /** Con la cámara ya calibrada se ofrece medir la DP del paciente (opción recomendada) o recalibrar. */
+    private boolean elegirRecalibrar() {
+        javafx.scene.control.ButtonType medir = new javafx.scene.control.ButtonType("Medir la DP de este paciente");
+        javafx.scene.control.ButtonType recalibrar = new javafx.scene.control.ButtonType("Recalibrar la cámara del equipo");
+        javafx.scene.control.Alert alerta = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.CONFIRMATION,
+                "La cámara ya está calibrada. Con la distancia medida se puede calcular la distancia entre pupilas (DP) "
+                        + "real de este paciente, así la distancia ya no depende de la tabla por edad.", medir, recalibrar);
+        alerta.setHeaderText("¿Qué desea hacer con esta medición?");
+        if (stage != null) alerta.initOwner(stage);
+        return alerta.showAndWait().orElse(medir) == recalibrar;
+    }
+
+    private void medirDpDelPaciente(double metros) {
+        double dp = detector.medirDpConDistanciaReal(metros * 100.0);
+        if (!com.eyesofter.formulas.Antropometria.esDpPlausible(dp)) {
+            lblIndicacion.setText("No se pudo medir la DP (lectura fuera de rango). Verifique que la persona mire de frente y repita.");
+            return;
+        }
+        SesionEvaluacion.registrarDpMedidaConCinta(dp);
+        detector.setDpPacienteMm(dp);
+        lblEstadoCamara.setText(String.format(Locale.US, "DP del paciente medida: %.1f mm. La distancia de esta sesión usa este valor.", dp));
     }
 
     private void actualizarLectura(boolean enRango, double centimetros) {

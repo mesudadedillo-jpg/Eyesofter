@@ -54,7 +54,7 @@
    <VBox fx:id="panelRespaldo" spacing="10" styleClass="registro-respaldo"><children>
      <HBox alignment="CENTER_LEFT" spacing="10"><children>
        <Label text="Registro del operador" styleClass="subtitulo-seccion"/>
-       <Label text="Clic en una letra (o teclas 1·2·3) para marcarla como no leída  ·  Enter registra  ·  V voz  ·  Retroceso deshace" styleClass="etiqueta-ayuda" wrapText="true"/>
+       <Label fx:id="lblAyudaOperador" text="Clic en una letra (o teclas 1·2·3) para marcarla como no leída  ·  Enter registra  ·  V voz  ·  Retroceso deshace" styleClass="etiqueta-ayuda" wrapText="true"/>
      </children></HBox>
      <HBox alignment="CENTER_LEFT" spacing="10"><children>
        <HBox fx:id="panelMarcas" spacing="8" alignment="CENTER_LEFT"/>
