@@ -12,11 +12,13 @@
    <Label text="✓" styleClass="icono-exito" />
    <Label text="Tamizaje finalizado" styleClass="etiqueta-titulo" />
    <Label fx:id="lblPaciente" text="Paciente" styleClass="subtitulo-seccion" />
+   <Label fx:id="lblSemaforo" text="" styleClass="semaforo-resultado" />
    <GridPane hgap="32" styleClass="resumen-resultados"><columnConstraints><ColumnConstraints percentWidth="50" /><ColumnConstraints percentWidth="50" /></columnConstraints><children>
-      <VBox GridPane.columnIndex="0" spacing="6"><children><Label text="Agudeza visual" styleClass="etiqueta-subtitulo" /><Label fx:id="lblSnellen" text="Pendiente" styleClass="valor-resultados" /></children></VBox>
-      <VBox GridPane.columnIndex="1" spacing="6"><children><Label text="Percepción cromática" styleClass="etiqueta-subtitulo" /><Label fx:id="lblIshihara" text="Pendiente" styleClass="valor-resultados" /></children></VBox>
+      <VBox GridPane.columnIndex="0" spacing="6"><children><Label text="Agudeza visual" styleClass="etiqueta-subtitulo" /><Label fx:id="lblSnellen" text="Pendiente" styleClass="valor-resultados" wrapText="true" /></children></VBox>
+      <VBox GridPane.columnIndex="1" spacing="6"><children><Label text="Percepción cromática" styleClass="etiqueta-subtitulo" /><Label fx:id="lblIshihara" text="Pendiente" styleClass="valor-resultados" wrapText="true" /></children></VBox>
    </children></GridPane>
    <VBox spacing="6" styleClass="recomendacion"><children><Label text="Orientación de seguimiento" styleClass="etiqueta-subtitulo" /><Label fx:id="lblRecomendacion" text="" wrapText="true" /></children></VBox>
+   <HBox fx:id="panelEnvio" alignment="CENTER" spacing="10" styleClass="barra-estado-voz"><children><Label fx:id="lblEnvio" text="" wrapText="true" styleClass="estado-voz" /><Button fx:id="btnMatricula" text="Indicar matrícula" onAction="#indicarMatricula" styleClass="boton-secundario" visible="false" managed="false" /></children></HBox>
    <Label fx:id="lblEstadoDocumento" text="Puede generar el expediente local de la sesión." styleClass="etiqueta-subtitulo" />
    <HBox alignment="CENTER" spacing="12"><children><Button text="Finalizar" onAction="#finalizar" styleClass="boton-secundario" /><Button fx:id="btnGenerarPdf" text="Generar expediente PDF" onAction="#generarExpediente" styleClass="boton-primario" /></children></HBox>
  </children><padding><Insets top="38" right="48" bottom="38" left="48" /></padding></VBox></children>

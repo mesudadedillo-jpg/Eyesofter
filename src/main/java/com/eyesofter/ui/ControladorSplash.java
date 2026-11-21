@@ -28,6 +28,8 @@ public class ControladorSplash implements ControladorDeVista {
         TemaAplicacion.cargar();
         ConfiguracionUsuarios.cargar();
         GestorBaseDatos.inicializarBaseDatos();
+        // Cola de envío al portal: retoma lo pendiente de sesiones anteriores (C-RFNN-03).
+        com.eyesofter.sincronizacion.ColaSincronizacion.iniciar();
         iniciarCarga();
     }
 

@@ -40,10 +40,23 @@ public class ControladorAcceso implements ControladorDeVista {
             mostrarError("Complete su nombre de usuario y contraseña.");
             return;
         }
-        if (!ConfiguracionUsuarios.validarCredenciales(usuario, contrasena)) {
-            mostrarError("Las credenciales no son válidas o la cuenta está desactivada.");
+        long bloqueo = ConfiguracionUsuarios.minutosBloqueo(usuario);
+        if (bloqueo > 0) {
+            mostrarError("Cuenta bloqueada por " + ConfiguracionUsuarios.INTENTOS_MAXIMOS
+                    + " intentos fallidos. Intente de nuevo en " + bloqueo + " minuto(s).");
             return;
         }
+        boolean inicial = ConfiguracionUsuarios.conservaCredencialesIniciales();
+        if (!ConfiguracionUsuarios.validarCredenciales(usuario, contrasena)) {
+            long ahora = ConfiguracionUsuarios.minutosBloqueo(usuario);
+            mostrarError(ahora > 0
+                    ? "Demasiados intentos fallidos. La cuenta quedó bloqueada " + ahora + " minutos."
+                    : "Usuario o contraseña incorrectos.");
+            txtContrasena.clear();
+            return;
+        }
+        // Primer uso: la contraseña de fábrica (root) debe cambiarse antes de entrar.
+        if (inicial && !exigirCambioContrasenaInicial(usuario, contrasena)) return;
 
         // Se guarda el usuario que acaba de iniciar sesión
         ConfiguracionUsuarios.setUsuarioSesionActual(usuario);
@@ -51,17 +64,61 @@ public class ControladorAcceso implements ControladorDeVista {
         Navegador.mostrar(stage, "/fxml/PanelAdministrativo.fxml", "EYESOFTER · Panel de control");
     }
 
+    private boolean exigirCambioContrasenaInicial(String usuario, String actual) {
+        Dialog<ButtonType> dialogo = new Dialog<>();
+        dialogo.setTitle("Cambie la contraseña inicial");
+        dialogo.setHeaderText("Por seguridad, la contraseña de fábrica debe cambiarse en el primer acceso.");
+        PasswordField nueva = new PasswordField(); nueva.setPromptText("Mínimo 8 caracteres, letras y números");
+        PasswordField confirmar = new PasswordField(); confirmar.setPromptText("Repita la contraseña");
+        Label regla = new Label("Use al menos 8 caracteres con letras y números.");
+        regla.setWrapText(true);
+        GridPane campos = new GridPane(); campos.setHgap(10); campos.setVgap(10);
+        campos.addRow(0, new Label("Nueva contraseña"), nueva);
+        campos.addRow(1, new Label("Confirmar"), confirmar);
+        campos.add(regla, 0, 2, 2, 1);
+        dialogo.getDialogPane().setContent(campos);
+        dialogo.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
+        while (true) {
+            var r = dialogo.showAndWait();
+            if (r.isEmpty() || r.get() != ButtonType.OK) return false;
+            if (!nueva.getText().equals(confirmar.getText())) { regla.setText("Las contraseñas no coinciden."); continue; }
+            if (ConfiguracionUsuarios.cambiarContrasena(usuario, actual, nueva.getText())) return true;
+            regla.setText("La contraseña debe tener al menos 8 caracteres, con letras y números, y no puede ser «root».");
+        }
+    }
+
     @FXML private void salirAplicacion() { ConfirmacionSalida.mostrar(stage); }
 
     @FXML
     private void mostrarAccesoInicial() {
         if (!ConfiguracionUsuarios.conservaCredencialesIniciales()) return;
-        Alert aviso = new Alert(Alert.AlertType.INFORMATION, "Cuenta inicial: root\nContraseña inicial: root\n\nLas cuentas se guardan en el archivo local .env.", ButtonType.OK);
+        Alert aviso = new Alert(Alert.AlertType.INFORMATION, "Cuenta inicial: root\nContraseña inicial: root\n\nAl entrar por primera vez se le pedirá cambiarla. Las contraseñas se guardan cifradas (hash) en el equipo.", ButtonType.OK);
         aviso.setHeaderText("Acceso inicial de EyeSofter");
         aviso.showAndWait();
     }
 
+    /**
+     * Crear cuentas exige autenticarse con una cuenta existente: antes cualquiera podía
+     * crearse una cuenta desde esta pantalla y entrar a los expedientes.
+     */
     @FXML private void agregarUsuario() {
+        Dialog<ButtonType> autorizacion = new Dialog<>();
+        autorizacion.setTitle("Autorizar nueva cuenta");
+        autorizacion.setHeaderText("Una persona con cuenta debe autorizar el alta.");
+        TextField usuarioAut = new TextField(); usuarioAut.setPromptText("Usuario existente");
+        PasswordField claveAut = new PasswordField(); claveAut.setPromptText("Contraseña");
+        GridPane datosAut = new GridPane(); datosAut.setHgap(10); datosAut.setVgap(10);
+        datosAut.addRow(0, new Label("Usuario"), usuarioAut);
+        datosAut.addRow(1, new Label("Contraseña"), claveAut);
+        autorizacion.getDialogPane().setContent(datosAut);
+        autorizacion.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
+        var respuestaAut = autorizacion.showAndWait();
+        if (respuestaAut.isEmpty() || respuestaAut.get() != ButtonType.OK) return;
+        if (ConfiguracionUsuarios.conservaCredencialesIniciales()
+                || !ConfiguracionUsuarios.validarCredenciales(usuarioAut.getText(), claveAut.getText())) {
+            mostrarError("No se autorizó: credenciales incorrectas, o primero debe cambiarse la contraseña inicial iniciando sesión.");
+            return;
+        }
         Dialog<ButtonType> dialogo = new Dialog<>();
         dialogo.setTitle("Agregar usuario local");
         TextField nombre = new TextField(); nombre.setPromptText("Nombre de usuario");
@@ -78,7 +135,7 @@ public class ControladorAcceso implements ControladorDeVista {
         dialogo.showAndWait().filter(r -> r == ButtonType.OK).ifPresent(r -> {
             boolean creado = ConfiguracionUsuarios.agregarUsuario(nombre.getText(), contrasena.getText(), pregunta.getText(), respuesta.getText());
             Alert aviso = new Alert(creado ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR,
-                    creado ? "Usuario local creado. Ya puede iniciar sesión." : "Completa usuario, contraseña, pregunta y respuesta; la contraseña debe tener al menos 8 caracteres.", ButtonType.OK);
+                    creado ? "Usuario local creado. Ya puede iniciar sesión." : "Completa usuario, contraseña, pregunta y respuesta. La contraseña debe tener al menos 8 caracteres con letras y números, y el usuario no debe existir.", ButtonType.OK);
             aviso.setHeaderText(creado ? "Cuenta registrada" : "No se pudo registrar la cuenta");
             aviso.showAndWait();
         });

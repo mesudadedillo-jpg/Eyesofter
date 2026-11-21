@@ -574,3 +574,9 @@
 .letra-contraste { -fx-padding: 6px 10px; -fx-border-color: transparent transparent transparent transparent; -fx-border-width: 0 0 6px 0; }
 .letra-no-leida { -fx-border-color: transparent transparent #E05A4F transparent; }
 .tema-oscuro .resultado-convertidor { -fx-background-color: #183B47; -fx-text-fill: #E8FAFB; }
+
+/* Semáforo de resultado (C-RC-10: color + ícono + texto) */
+.semaforo-resultado { -fx-font-size: 20px; -fx-font-weight: 900; -fx-padding: 10px 22px; -fx-background-radius: 999px; }
+.semaforo-verde { -fx-background-color: #DDF7E8; -fx-text-fill: #0B5D2E; }
+.semaforo-amarillo { -fx-background-color: #FEF3C7; -fx-text-fill: #6B3E00; }
+.semaforo-rojo { -fx-background-color: #FCE4E2; -fx-text-fill: #8F1D14; }

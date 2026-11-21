@@ -83,6 +83,14 @@ public class AppConfig {
     public static int INDICE_CAMARA_PREFERIDA = 0;
     public static boolean TEMA_OSCURO = false;
 
+    // Conexión con EYESOFTER Suite (servidor de la app móvil y del portal web)
+    /** Dirección base del servidor, p. ej. https://eyesofter-api.up.railway.app */
+    public static String URL_API_SUITE = "";
+    /** Clave del escritorio (X-Api-Key). La variable de entorno EYESOFTER_API_KEY tiene prioridad. */
+    public static String CLAVE_API_ESCRITORIO = "";
+    /** Nombre del equipo que aparece en las alertas de sincronización. */
+    public static String NOMBRE_EQUIPO = "Enfermería PC1";
+
 
 
 // Configuración de la Base de Datos Local
@@ -111,6 +119,8 @@ public class AppConfig {
         if (!archivo.exists()) {
 
             cargado = true;
+            String claveSinArchivo = System.getenv("EYESOFTER_API_KEY");
+            if (claveSinArchivo != null && !claveSinArchivo.isBlank()) CLAVE_API_ESCRITORIO = claveSinArchivo.trim();
 
             return;
 
@@ -151,6 +161,9 @@ public class AppConfig {
             TEMA_OSCURO = Boolean.parseBoolean(p.getProperty("temaOscuro", String.valueOf(TEMA_OSCURO)));
 
             URL_BASE_DATOS = p.getProperty("urlBaseDatos", URL_BASE_DATOS);
+            URL_API_SUITE = p.getProperty("urlApiSuite", URL_API_SUITE);
+            CLAVE_API_ESCRITORIO = p.getProperty("claveApiEscritorio", CLAVE_API_ESCRITORIO);
+            NOMBRE_EQUIPO = p.getProperty("nombreEquipo", NOMBRE_EQUIPO);
 
         } catch (IOException e) {
 
@@ -159,6 +172,8 @@ public class AppConfig {
         }
 
         cargado = true;
+        String claveEntorno = System.getenv("EYESOFTER_API_KEY");
+        if (claveEntorno != null && !claveEntorno.isBlank()) CLAVE_API_ESCRITORIO = claveEntorno.trim();
 
     }
 
@@ -199,6 +214,9 @@ public class AppConfig {
         p.setProperty("temaOscuro", String.valueOf(TEMA_OSCURO));
 
         p.setProperty("urlBaseDatos", URL_BASE_DATOS);
+        p.setProperty("urlApiSuite", URL_API_SUITE);
+        p.setProperty("claveApiEscritorio", CLAVE_API_ESCRITORIO);
+        p.setProperty("nombreEquipo", NOMBRE_EQUIPO);
 
         try (FileOutputStream out = new FileOutputStream(new File(DIRECTORIO_APLICACION, ARCHIVO_PROPIEDADES))) {
 

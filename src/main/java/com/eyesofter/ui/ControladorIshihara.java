@@ -347,6 +347,10 @@ public class ControladorIshihara implements ControladorDeVista {
             return;
         }
 
+        // C-RFN-02: el resultado se envía al portal (con reintentos si no hay conexión).
+        SesionEvaluacion.registrarFolioEnvio(com.eyesofter.sincronizacion.ColaSincronizacion.encolar(
+                SesionEvaluacion.getCurpPaciente(), SesionEvaluacion.getResultadoClinico()));
+
         GestorBaseDatos.obtenerCitasPaciente(SesionEvaluacion.getCurpPaciente()).stream()
                 .filter(c -> "EN_EVALUACION".equalsIgnoreCase(c.estado))
                 .findFirst().ifPresent(c -> GestorBaseDatos.actualizarEstadoCita(c.idCita, "COMPLETADA"));
