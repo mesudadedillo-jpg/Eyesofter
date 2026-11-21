@@ -8,7 +8,8 @@
         <Label fx:id="lblPrueba" styleClass="fase-prueba" />
         <Label fx:id="lblOjo" styleClass="fase-ojo" wrapText="true" textAlignment="CENTER" />
         <Label fx:id="lblInstruccion" styleClass="fase-instruccion" wrapText="true" textAlignment="CENTER" maxWidth="850" />
-        <Button text="Estoy listo/a - comenzar" onAction="#comenzar" styleClass="boton-fase" />
+        <Button text="Estoy listo/a · comenzar" onAction="#comenzar" styleClass="boton-fase" defaultButton="true" />
+        <Label fx:id="lblCuentaRegresiva" text="" styleClass="fase-cuenta" />
         <Button text="Cancelar prueba" onAction="#cancelarPrueba" styleClass="boton-secundario" />
     </children>
     <padding><Insets top="60" right="60" bottom="60" left="60" /></padding>

@@ -9,6 +9,12 @@
     -fx-font-size: 16px;
 }
 
+/* Tamaños por defecto. Deben ir ANTES de las clases específicas: si van al final,
+   anulan los tamaños de títulos, indicadores y pantallas de prueba. */
+.button { -fx-font-size: 15px; }
+.label { -fx-font-size: 16px; }
+.text-field, .password-field, .text-area, .combo-box, .date-picker { -fx-font-size: 17px; }
+
 /* --- TARJETAS CONTENEDORAS (Cards) --- */
 .contenedor-principal {
     -fx-background-color: #FFFFFF;
@@ -90,7 +96,7 @@
 }
 
 /* Lenguaje visual moderno compartido por acciones y ventanas emergentes. */
-.button { -fx-font-family: "Segoe UI", "Inter", sans-serif; -fx-font-size: 13px; -fx-font-weight: 700; -fx-background-radius: 10px; -fx-border-radius: 10px; -fx-padding: 9px 16px; -fx-cursor: hand; }
+.button { -fx-font-family: "Segoe UI", "Inter", sans-serif; -fx-font-size: 15px; -fx-font-weight: 700; -fx-background-radius: 10px; -fx-border-radius: 10px; -fx-padding: 9px 16px; -fx-cursor: hand; }
 .button:hover { -fx-effect: dropshadow(gaussian, rgba(18,78,91,.20), 10, 0, 0, 3); -fx-translate-y: -1px; }
 .button:pressed { -fx-translate-y: 0; -fx-scale-x: .98; -fx-scale-y: .98; }
 .ventana-emergente { -fx-background-color: #F7F9FA; }
@@ -493,9 +499,6 @@
 .tema-oscuro .pagina-scroll .scroll-bar:vertical .thumb { -fx-background-color: #4D7C86; }
 
 /* Contraste oscuro: todos los controles conservan lectura y estados claros. */
-.button { -fx-font-size: 15px; }
-.label { -fx-font-size: 16px; }
-.text-field, .password-field, .text-area, .combo-box, .date-picker { -fx-font-size: 17px; }
 .tema-oscuro .boton-primario, .tema-oscuro .boton-fase { -fx-background-color: #4FA3B5; -fx-text-fill: #071A20; }
 .tema-oscuro .boton-primario:hover, .tema-oscuro .boton-fase:hover { -fx-background-color: #76C4D2; -fx-text-fill: #06161B; }
 .tema-oscuro .boton-secundario, .tema-oscuro .boton-acento { -fx-background-color: #244F5B; -fx-border-color: #79C8D3; -fx-text-fill: #F4FCFD; }
@@ -532,3 +535,48 @@
 .tema-oscuro .dialog-pane .combo-box-popup .list-cell:hover, .tema-oscuro .dialog-pane .date-picker .cell:hover { -fx-background-color: #286777; -fx-text-fill: #FFFFFF; }
 .tema-oscuro .dialog-pane .button-bar .button { -fx-opacity: 1; }
 .tema-oscuro .dialog-pane .button:disabled { -fx-background-color: #29444C; -fx-text-fill: #86A7AE; }
+
+/* ==========================================================================
+   PRUEBAS CLÍNICAS · componentes de la versión 2 (Snellen LogMAR, voz, cámara)
+   ========================================================================== */
+.barra-prueba { -fx-padding: 4px 0 6px 140px; }
+.insignia-ojo { -fx-font-size: 22px; -fx-font-weight: 900; -fx-text-fill: #FFFFFF; -fx-background-color: #164E59; -fx-background-radius: 12px; -fx-padding: 8px 16px; -fx-min-width: 64px; -fx-alignment: center; }
+.insignia-derecho { -fx-background-color: #1D4ED8; }
+.insignia-izquierdo { -fx-background-color: #7C3AED; }
+.etiqueta-subtitulo-fuerte { -fx-font-size: 16px; -fx-font-weight: 800; -fx-text-fill: #164E59; }
+.etiqueta-ayuda { -fx-font-size: 13px; -fx-text-fill: #64748B; }
+.chip-distancia { -fx-font-size: 15px; -fx-font-weight: 700; -fx-text-fill: #334155; -fx-background-color: #EEF2F5; -fx-background-radius: 999px; -fx-padding: 7px 14px; }
+.chip-ok { -fx-text-fill: #13733D; -fx-background-color: #DDF7E8; }
+.chip-aviso { -fx-text-fill: #8A4B00; -fx-background-color: #FEF3C7; }
+.banda-instruccion { -fx-font-size: 22px; -fx-font-weight: 800; -fx-text-fill: #102B35; -fx-background-color: #EAF5F6; -fx-background-radius: 12px; -fx-padding: 12px 18px; -fx-alignment: center; -fx-text-alignment: center; }
+.alerta-pausa { -fx-font-size: 18px; -fx-font-weight: 700; -fx-text-fill: #7A3E00; -fx-background-color: #FFF4DB; -fx-border-color: #F2C46D; -fx-border-radius: 12px; -fx-background-radius: 12px; -fx-padding: 14px 20px; }
+.barra-estado-voz { -fx-background-color: #F8FAFC; -fx-background-radius: 999px; -fx-padding: 10px 20px; -fx-border-color: #E2E8F0; -fx-border-radius: 999px; }
+.estado-voz { -fx-font-size: 18px; -fx-font-weight: 700; -fx-text-fill: #1E293B; }
+.chip-oido { -fx-font-size: 15px; -fx-text-fill: #475569; -fx-font-style: italic; }
+.indicador-microfono { -fx-fill: #CBD5E1; }
+.mic-escuchando { -fx-fill: #E11D48; -fx-effect: dropshadow(gaussian, rgba(225,29,72,.6), 14, 0.3, 0, 0); }
+.mic-procesando { -fx-fill: #F59E0B; }
+.mic-error { -fx-fill: #F97316; }
+.optotipo-registrado { -fx-border-color: transparent transparent #CBD5E1 transparent; }
+.boton-marca { -fx-font-size: 18px; -fx-font-weight: 900; -fx-min-width: 96px; -fx-padding: 8px 14px; -fx-background-radius: 10px; -fx-border-radius: 10px; -fx-border-width: 2px; }
+.marca-leida { -fx-background-color: #DDF7E8; -fx-text-fill: #13733D; -fx-border-color: #2FAE6B; }
+.marca-no-leida { -fx-background-color: #FCE4E2; -fx-text-fill: #B42318; -fx-border-color: #E05A4F; }
+.fase-cuenta { -fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: #1A6C7D; }
+.tecla-numero, .tecla-nada { -fx-font-size: 18px; -fx-font-weight: 800; -fx-min-width: 56px; -fx-min-height: 46px; -fx-background-color: #FFFFFF; -fx-border-color: #CBD5E1; -fx-text-fill: #164E59; }
+.tecla-nada { -fx-min-width: 96px; -fx-background-color: #EAF5F6; }
+.marco-camara { -fx-background-color: #0F172A; -fx-background-radius: 14px; -fx-border-color: #1E293B; -fx-border-radius: 14px; }
+.marco-camara .etiqueta-subtitulo { -fx-text-fill: #94A3B8; }
+.tarjeta-calibracion { -fx-fill: rgba(26,108,125,.18); -fx-stroke: #1A6C7D; -fx-stroke-width: 2; -fx-stroke-dash-array: 8 6; }
+.tarjeta-herramienta { -fx-min-height: 210px; }
+.resultado-convertidor { -fx-font-size: 15px; -fx-font-weight: 700; -fx-text-fill: #164E59; -fx-background-color: #EDF5F6; -fx-background-radius: 10px; -fx-padding: 12px 14px; }
+.boton-alternar { -fx-background-color: #EEF2F5; -fx-text-fill: #164E59; }
+.boton-alternar:selected { -fx-background-color: #164E59; -fx-text-fill: #FFFFFF; }
+.letra-contraste { -fx-padding: 6px 10px; -fx-border-color: transparent transparent transparent transparent; -fx-border-width: 0 0 6px 0; }
+.letra-no-leida { -fx-border-color: transparent transparent #E05A4F transparent; }
+.tema-oscuro .resultado-convertidor { -fx-background-color: #183B47; -fx-text-fill: #E8FAFB; }
+
+/* Semáforo de resultado (C-RC-10: color + ícono + texto) */
+.semaforo-resultado { -fx-font-size: 20px; -fx-font-weight: 900; -fx-padding: 10px 22px; -fx-background-radius: 999px; }
+.semaforo-verde { -fx-background-color: #DDF7E8; -fx-text-fill: #0B5D2E; }
+.semaforo-amarillo { -fx-background-color: #FEF3C7; -fx-text-fill: #6B3E00; }
+.semaforo-rojo { -fx-background-color: #FCE4E2; -fx-text-fill: #8F1D14; }

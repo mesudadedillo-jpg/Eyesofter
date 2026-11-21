@@ -84,7 +84,20 @@ public class ControladorConfiguracion {
 
         // Configurar el evento dinámico del Slider para actualizar el texto
         sliderDistancia.valueProperty().addListener((obs, oldVal, newVal) -> {
-            lblValorDistancia.setText(String.format("Distancia seleccionada: %.1f Metros", newVal.doubleValue()));
+            lblValorDistancia.setText(String.format(java.util.Locale.US, "Distancia seleccionada: %.1f metros", newVal.doubleValue()));
+        });
+        // Se parte de la última distancia guardada (antes siempre volvía a 1.0 m).
+        sliderDistancia.setValue(Math.max(sliderDistancia.getMin(), Math.min(sliderDistancia.getMax(), AppConfig.DISTANCIA_OBJETIVO_METROS_DEFECTO)));
+        lblValorDistancia.setText(String.format(java.util.Locale.US, "Distancia seleccionada: %.1f metros", sliderDistancia.getValue()));
+    }
+
+    /** Mide el PPI real con una tarjeta de tamaño estándar (ver {@link CalibradorPantalla}). */
+    @FXML
+    private void medirConTarjeta() {
+        CalibradorPantalla.medirYGuardar(stagePrincipal).ifPresent(ppi -> {
+            txtPPI.setText(String.format(java.util.Locale.US, "%.1f", ppi));
+            lblResolucion.setText(String.format(java.util.Locale.US,
+                    "PPI medido con tarjeta: %.1f · diagonal equivalente: %.1f in", ppi, AppConfig.MONITOR_DIAGONAL_PULGADAS));
         });
     }
 
@@ -97,7 +110,8 @@ public class ControladorConfiguracion {
         double ppi = 96.0;
 
         try {
-            ppi = Double.parseDouble(txtPPI.getText());
+            ppi = Double.parseDouble(txtPPI.getText().replace(',', '.').trim());
+            if (ppi < 50 || ppi > 600) throw new NumberFormatException();
         } catch (NumberFormatException ex) {
             System.err.println("[ADVERTENCIA]: PPI inválido, usando 96 por defecto.");
         }

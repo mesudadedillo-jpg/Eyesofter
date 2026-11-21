@@ -17,7 +17,7 @@ import java.io.IOException;
 /** Contenedor persistente para los módulos administrativos de EYESOFTER. */
 public class ControladorPanelAdministrativo implements ControladorDeVista {
     @FXML private StackPane contenido;
-    @FXML private Button btnInicio, btnPacientes, btnHistorial, btnReportes, btnConfiguracion;
+    @FXML private Button btnInicio, btnPacientes, btnHistorial, btnReportes, btnHerramientas, btnConfiguracion;
 
     // Componentes para actualizar dinámicamente el usuario en la esquina superior derecha
     @FXML private Label lblNombreUsuarioHeader;
@@ -38,6 +38,7 @@ public class ControladorPanelAdministrativo implements ControladorDeVista {
     @FXML private void pacientes() { cargar("PacientesAdministrativo", btnPacientes); }
     @FXML public void historial() { cargar("HistorialAdministrativo", btnHistorial); }
     @FXML private void reportes() { cargar("ReportesAdministrativo", btnReportes); }
+    @FXML private void herramientas() { cargar("HerramientasAdministrativo", btnHerramientas); }
     @FXML private void configuracion() { cargar("ConfiguracionAdministrativo", btnConfiguracion); }
     public void mostrarPacientes() { cargar("PacientesAdministrativo", btnPacientes); }
 
@@ -112,7 +113,7 @@ public class ControladorPanelAdministrativo implements ControladorDeVista {
     }
 
     private void seleccionarMenu(Button botonSeleccionado) {
-        for (Button boton : new Button[] {btnInicio, btnPacientes, btnHistorial, btnReportes, btnConfiguracion}) {
+        for (Button boton : new Button[] {btnInicio, btnPacientes, btnHistorial, btnReportes, btnHerramientas, btnConfiguracion}) {
             boton.getStyleClass().remove("boton-menu-activo");
         }
         botonSeleccionado.getStyleClass().add("boton-menu-activo");

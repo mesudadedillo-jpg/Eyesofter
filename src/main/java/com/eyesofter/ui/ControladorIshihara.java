@@ -1,6 +1,5 @@
 package com.eyesofter.ui;
 
-import com.eyesofter.config.AppConfig;
 import com.eyesofter.db.GestorBaseDatos;
 import com.eyesofter.voz.ReconocedorOptotipos;
 import com.eyesofter.voz.VozGuia;
@@ -10,7 +9,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.shape.Circle;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.Stage;
@@ -50,7 +51,18 @@ public class ControladorIshihara implements ControladorDeVista {
     @FXML private Button btnRegistrar;
     @FXML private Button btnEscuchar;
     @FXML private Label lblRetroalimentacion;
-    @FXML private HBox panelRespaldo;
+    @FXML private VBox panelRespaldo;
+    @FXML private FlowPane tecladoNumerico;
+    @FXML private Circle indicadorMicrofono;
+    @FXML private Label lblOido;
+
+    private static final int MAX_REINTENTOS = 2;
+    private int reintentos;
+    private int respuestasRegistradas;
+    private int sinRespuesta;
+    private boolean instruccionDada;
+    private boolean finalizada;
+    private int generacionCaptura;
 
     private Stage stage;
     private List<Lamina> laminasPrueba;
@@ -73,6 +85,7 @@ public class ControladorIshihara implements ControladorDeVista {
         boolean asistida = SesionEvaluacion.getModoEvaluacion() == SesionEvaluacion.ModoEvaluacion.ASISTIDA;
         panelRespaldo.setVisible(asistida); panelRespaldo.setManaged(asistida);
         lblRetroalimentacion.setVisible(!asistida); lblRetroalimentacion.setManaged(!asistida);
+        if (asistida) construirTeclado();
         iniciarMotorVoz();
         mostrarLamina();
     }
@@ -99,9 +112,11 @@ public class ControladorIshihara implements ControladorDeVista {
 
         Thread hiloVoz = new Thread(() -> {
             try {
-                reconocedor = new ReconocedorOptotipos(AppConfig.RUTA_MODELO_VOSK);
-                reconocedor.setModo(ReconocedorOptotipos.ModoPrueba.ISHIHARA);
+                ReconocedorOptotipos r = ReconocedorOptotipos.compartido();
+                r.setModo(ReconocedorOptotipos.ModoPrueba.ISHIHARA);
                 Platform.runLater(() -> {
+                    if (finalizada) return;
+                    reconocedor = r;
                     btnEscuchar.setDisable(false);
                     lblEstado.setText("Indique el número observado; si no identifica uno, registre “NADA”.");
                     if (SesionEvaluacion.getModoEvaluacion() == SesionEvaluacion.ModoEvaluacion.AUTONOMA) guiarLaminaAutonoma();
@@ -126,7 +141,10 @@ public class ControladorIshihara implements ControladorDeVista {
         // El nombre clínico se conserva para trazabilidad técnica, pero no se expone
         // durante la toma para no sugerir la respuesta al paciente ni al auxiliar.
         lblLamina.setText("Lámina " + (indice + 1) + " de " + laminasPrueba.size());
-        lblMarcador.setText(aciertosNormales + " respuestas normales");
+        // Marcador neutral: no revela si las respuestas son correctas.
+        lblMarcador.setText(respuestasRegistradas + " respuestas registradas");
+        reintentos = 0;
+        lblOido.setText("");
         barraProgreso.setProgress(indice / (double) laminasPrueba.size());
         lblEstado.setText("Indique el número observado; si no identifica uno, registre “NADA”.");
         lblRetroalimentacion.setText("");
@@ -136,9 +154,41 @@ public class ControladorIshihara implements ControladorDeVista {
     }
 
     private void guiarLaminaAutonoma() {
-        if (capturando || indice >= laminasPrueba.size()) return;
-        lblEstado.setText("Observa la lámina y responde en voz alta.");
-        VozGuia.decir("Observa la lámina. Di el número que ves. Si no ves un número, di nada.", this::capturarPorVoz);
+        if (capturando || finalizada || indice >= laminasPrueba.size()) return;
+        lblEstado.setText("Observa la lámina y di el número que ves.");
+        if (!instruccionDada) {
+            instruccionDada = true;
+            VozGuia.decir("Observa la lámina. Di el número que ves. Si no ves ningún número, di nada.", this::escucharConTono);
+        } else {
+            escucharConTono();
+        }
+    }
+
+    private void escucharConTono() {
+        if (finalizada) return;
+        VozGuia.tono(this::capturarPorVoz);
+    }
+
+    private void construirTeclado() {
+        tecladoNumerico.getChildren().clear();
+        String[] teclas = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "⌫", "NADA"};
+        for (String t : teclas) {
+            Button b = new Button(t);
+            b.getStyleClass().add(t.equals("NADA") ? "tecla-nada" : "tecla-numero");
+            b.setOnAction(e -> {
+                String actual = txtRespuesta.getText() == null ? "" : txtRespuesta.getText();
+                if (t.equals("⌫")) txtRespuesta.setText(actual.isEmpty() ? "" : actual.substring(0, actual.length() - 1));
+                else if (t.equals("NADA")) txtRespuesta.setText("NADA");
+                else txtRespuesta.setText(actual.equals("NADA") ? t : (actual + t).length() > 2 ? actual : actual + t);
+                txtRespuesta.positionCaret(txtRespuesta.getText().length());
+            });
+            tecladoNumerico.getChildren().add(b);
+        }
+    }
+
+    private void ponerMicrofono(boolean escuchando) {
+        indicadorMicrofono.getStyleClass().remove("mic-escuchando");
+        if (escuchando) indicadorMicrofono.getStyleClass().add("mic-escuchando");
     }
 
     private void cargarImagen() {
@@ -175,12 +225,30 @@ public class ControladorIshihara implements ControladorDeVista {
         SesionEvaluacion.registrarEntradaVoz();
         btnEscuchar.setDisable(true);
         btnRegistrar.setDisable(true);
-        lblEstado.setText("Escuchando... Diga el número en voz alta.");
+        lblEstado.setText("Escuchando…  di el número en voz alta.");
+        ponerMicrofono(true);
+        final int generacion = ++generacionCaptura;
+        ReconocedorOptotipos r = reconocedor;
 
         Thread hilo = new Thread(() -> {
             try {
-                String respuesta = reconocedor.escucharOptotipo();
-                Platform.runLater(() -> { if (SesionEvaluacion.estaActiva()) procesarRespuesta(respuesta); });
+                String respuesta = r.escucharOptotipo();
+                String oido = r.getUltimoTextoOido();
+                Platform.runLater(() -> {
+                    if (generacion != generacionCaptura || finalizada || !SesionEvaluacion.estaActiva()) return;
+                    ponerMicrofono(false);
+                    if (oido != null && !oido.isBlank()) lblOido.setText("Escuché: «" + oido + "»");
+                    if (SesionEvaluacion.getModoEvaluacion() == SesionEvaluacion.ModoEvaluacion.ASISTIDA
+                            && !ReconocedorOptotipos.TIMEOUT.equals(respuesta) && !ReconocedorOptotipos.RUIDO.equals(respuesta)
+                            && !ReconocedorOptotipos.ERROR.equals(respuesta) && !ReconocedorOptotipos.CANCELADO.equals(respuesta)) {
+                        // En modo asistido la voz solo rellena el campo: el operador confirma.
+                        txtRespuesta.setText(respuesta);
+                        lblEstado.setText("Revise la respuesta y presione Registrar (Enter).");
+                        restaurarControles();
+                        return;
+                    }
+                    procesarRespuesta(respuesta);
+                });
             } catch (Exception ex) {
                 Platform.runLater(() -> {
                     if (!SesionEvaluacion.estaActiva()) return;
@@ -194,33 +262,60 @@ public class ControladorIshihara implements ControladorDeVista {
     }
 
     private void procesarRespuesta(String respuesta) {
+        if (finalizada) return;
         String valor = respuesta == null ? "" : respuesta.trim().toUpperCase();
-
-        if (valor.isEmpty() || valor.equals("TIMEOUT") || valor.equals("RUIDO")) {
-            lblEstado.setText("No te entendí. Repite la respuesta.");
+        if (ReconocedorOptotipos.CANCELADO.equals(valor)) { restaurarControles(); return; }
+        boolean autonoma = SesionEvaluacion.getModoEvaluacion() == SesionEvaluacion.ModoEvaluacion.AUTONOMA;
+        if (valor.isEmpty() || valor.equals(ReconocedorOptotipos.TIMEOUT) || valor.equals(ReconocedorOptotipos.RUIDO)
+                || valor.equals(ReconocedorOptotipos.ERROR)) {
             restaurarControles();
-            if (SesionEvaluacion.getModoEvaluacion() == SesionEvaluacion.ModoEvaluacion.AUTONOMA) {
-                VozGuia.decir("No te entendí. Repite el número que observas.", this::capturarPorVoz);
+            if (!autonoma) {
+                lblEstado.setText("No se entendió. Escriba el número o use el teclado.");
+                return;
             }
+            reintentos++;
+            if (reintentos > MAX_REINTENTOS) {
+                // Sin respuesta válida tras 2 intentos: se registra y se sigue (la prueba nunca se atasca).
+                sinRespuesta++;
+                avanzar("Sin respuesta", false);
+                return;
+            }
+            lblEstado.setText("No te entendí. Repite el número.");
+            VozGuia.decir(reintentos == 1 ? "No te entendí. Repite el número." : "Si no ves ningún número, di nada.", this::escucharConTono);
+            return;
+        }
+        if (valor.equals(ReconocedorOptotipos.RESPUESTA_NO_SE)) valor = ReconocedorOptotipos.RESPUESTA_NADA;
+        if (!valor.equals(ReconocedorOptotipos.RESPUESTA_NADA) && !valor.matches("\\d{1,2}")) {
+            lblEstado.setText("Respuesta no válida: escriba un número de 1 o 2 cifras, o NADA.");
+            restaurarControles();
             return;
         }
 
         Lamina laminaActual = laminasPrueba.get(indice);
-
         boolean acierto = valor.equals(laminaActual.respuestaNormal.toUpperCase());
         if (acierto) {
             aciertosNormales++;
         } else if (valor.equals(laminaActual.respuestaDaltonica.toUpperCase())) {
             erroresDaltonismo++;
         }
+        avanzar(valor.equals("NADA") ? "«nada»" : valor, true);
+    }
 
+    private void avanzar(String respuestaMostrada, boolean valida) {
+        respuestasRegistradas++;
         restaurarControles();
         if (SesionEvaluacion.getModoEvaluacion() == SesionEvaluacion.ModoEvaluacion.AUTONOMA) {
-            lblRetroalimentacion.setText(acierto ? "✓ Muy bien" : "✗ Continuemos");
+            // Retroalimentación neutral: no indica si la respuesta fue correcta.
+            lblRetroalimentacion.setText(valida ? "✓ Respuesta registrada: " + respuestaMostrada : "Sin respuesta · continuamos");
             lblRetroalimentacion.getStyleClass().removeAll("retroalimentacion-acierto", "retroalimentacion-error");
-            lblRetroalimentacion.getStyleClass().add(acierto ? "retroalimentacion-acierto" : "retroalimentacion-error");
-            VozGuia.decir(acierto ? "Muy bien." : "Continuemos con la siguiente lámina.", () -> { indice++; mostrarLamina(); });
-        } else { indice++; mostrarLamina(); }
+            lblRetroalimentacion.getStyleClass().add("retroalimentacion-acierto");
+            javafx.animation.PauseTransition p = new javafx.animation.PauseTransition(javafx.util.Duration.millis(600));
+            p.setOnFinished(e -> { indice++; mostrarLamina(); });
+            p.play();
+        } else {
+            indice++;
+            mostrarLamina();
+        }
     }
 
     private void restaurarControles() {
@@ -230,10 +325,10 @@ public class ControladorIshihara implements ControladorDeVista {
     }
 
     private void finalizar() {
-        // Liberamos Vosk de la memoria RAM al terminar la prueba
-        if (reconocedor != null) {
-            reconocedor.liberar();
-        }
+        if (finalizada) return;
+        finalizada = true;
+        generacionCaptura++;
+        if (reconocedor != null) reconocedor.cancelarEscucha();
 
         // La respuesta coincidente con el patrón de deficiencia se conserva
         // separada de los aciertos: es una señal de tamizaje, no un diagnóstico.
@@ -252,6 +347,10 @@ public class ControladorIshihara implements ControladorDeVista {
             return;
         }
 
+        // C-RFN-02: el resultado se envía al portal (con reintentos si no hay conexión).
+        SesionEvaluacion.registrarFolioEnvio(com.eyesofter.sincronizacion.ColaSincronizacion.encolar(
+                SesionEvaluacion.getCurpPaciente(), SesionEvaluacion.getResultadoClinico()));
+
         GestorBaseDatos.obtenerCitasPaciente(SesionEvaluacion.getCurpPaciente()).stream()
                 .filter(c -> "EN_EVALUACION".equalsIgnoreCase(c.estado))
                 .findFirst().ifPresent(c -> GestorBaseDatos.actualizarEstadoCita(c.idCita, "COMPLETADA"));
@@ -261,7 +360,10 @@ public class ControladorIshihara implements ControladorDeVista {
 
     @FXML private void cancelarPrueba() {
         CancelacionPrueba.solicitar(stage, () -> {
-            if (reconocedor != null) reconocedor.liberar();
+            finalizada = true;
+            generacionCaptura++;
+            if (reconocedor != null) reconocedor.cancelarEscucha();
+            VozGuia.cancelarPendientes();
         });
     }
 }

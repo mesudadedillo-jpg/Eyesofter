@@ -51,6 +51,10 @@ public final class SesionEvaluacion {
     private static boolean entradaManual;
     private static boolean entradaVoz;
     private static boolean activa;
+    private static String folioEnvio;
+
+    public static void registrarFolioEnvio(String folio) { folioEnvio = folio; }
+    public static String getFolioEnvio() { return folioEnvio; }
 
     private SesionEvaluacion() { }
 
@@ -67,6 +71,8 @@ public final class SesionEvaluacion {
         entradaManual = false;
         entradaVoz = false;
         activa = true;
+        folioEnvio = null;
+        ControladorSnellen.reiniciarIntroduccion();
     }
 
     public static String getCurpPaciente() { return curpPaciente; }

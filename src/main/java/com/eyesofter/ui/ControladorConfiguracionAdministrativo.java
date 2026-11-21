@@ -19,7 +19,11 @@ public class ControladorConfiguracionAdministrativo implements VistaAdministrati
     private ControladorPanelAdministrativo panel;
     private String usuarioActivo;
 
+    @FXML private javafx.scene.layout.VBox contenedorTarjetas;
+
     @FXML private void initialize() {
+        // Conexión con el portal: va después de la tarjeta de cuenta.
+        if (contenedorTarjetas != null) contenedorTarjetas.getChildren().add(Math.min(2, contenedorTarjetas.getChildren().size()), TarjetaConexionSuite.crear());
         usuarioActivo = ConfiguracionUsuarios.obtenerUsuarioPrincipal();
         lblUsuario.setText(usuarioActivo);
         // Windows puede tardar (o bloquearse) al consultar un controlador de audio.

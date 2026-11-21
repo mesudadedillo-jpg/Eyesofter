@@ -113,6 +113,17 @@ public final class DispositivosAudio {
         }
 
         public void iniciar() { if (!linea.isRunning()) linea.start(); }
+        /**
+         * Descarta el audio que quedó en el búfer de la línea (por ejemplo, la voz guía
+         * o ruido grabado antes de detener). Así la respuesta empieza "limpia".
+         */
+        public void descartarAudioPendiente() {
+            linea.flush();
+            try {
+                int disponibles = flujo.available();
+                if (disponibles > 0) flujo.skip(disponibles);
+            } catch (java.io.IOException ignored) { }
+        }
         public void detener() { if (linea.isRunning()) linea.stop(); }
         public int leer(byte[] buffer) throws java.io.IOException { return flujo.read(buffer, 0, buffer.length); }
         public String getNombreDispositivo() { return nombreDispositivo; }

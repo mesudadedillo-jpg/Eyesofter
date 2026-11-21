@@ -36,6 +36,8 @@ public class ControladorRegistro {
     @FXML private TextField txtCorreoTutor;
 
     @FXML private Button btnContinuar;
+    @FXML private TextField txtMatricula;
+    @FXML private javafx.scene.control.CheckBox chkConsentimiento;
     @FXML private ComboBox<SesionEvaluacion.ModoEvaluacion> cmbModoEvaluacion;
 
     public static void mostrarVentana(Stage stage) {
@@ -91,6 +93,7 @@ public class ControladorRegistro {
                     }
 
                     txtGradoGrupo.setText(datos[3]); // Grado y Grupo
+                    txtMatricula.setText(com.eyesofter.sincronizacion.ColaSincronizacion.obtenerMatricula(datos[0]));
                     actualizarEdadDesdeFecha();
                 }
             }
@@ -127,6 +130,10 @@ public class ControladorRegistro {
         String correoT = txtCorreoTutor.getText().trim();
         SesionEvaluacion.ModoEvaluacion modo = cmbModoEvaluacion.getValue();
 
+        if (!esMayorEdad() && !chkConsentimiento.isSelected()) {
+            showAlert("Falta el consentimiento", "Para evaluar a un menor de edad, la persona responsable debe conocer el aviso de privacidad y autorizar el tratamiento de sus datos (C-RC-08).");
+            return;
+        }
         if (curpA.isEmpty() || nombreA.isEmpty() || (!esMayorEdad() && (curpT.isEmpty() || nombreT.isEmpty()))) {
             showAlert("Información incompleta", esMayorEdad()
                     ? "Capture al menos la CURP y el nombre de la persona paciente."
@@ -137,6 +144,7 @@ public class ControladorRegistro {
         try {
             GestorBaseDatos.registrarTutor(curpT, nombreT, telT, correoT);
             GestorBaseDatos.registrarPaciente(curpA, nombreA, fechaNacA, gradoA, curpT);
+            com.eyesofter.sincronizacion.ColaSincronizacion.guardarMatricula(curpA, txtMatricula.getText());
 
             SesionEvaluacion.iniciar(curpA, nombreA, gradoA);
             SesionEvaluacion.configurarModo(modo);
@@ -150,10 +158,18 @@ public class ControladorRegistro {
         }
     }
 
+    /** Busca al alumno en el portal para tomar su matrícula sin capturarla a mano. */
+    @FXML private void buscarMatricula() {
+        String curp = txtCurpAlumno.getText().trim();
+        if (curp.isEmpty()) { showAlert("Falta la CURP", "Capture primero la CURP del estudiante."); return; }
+        DialogoMatricula.pedir(stagePrincipal, curp, txtNombreAlumno.getText()).ifPresent(txtMatricula::setText);
+    }
+
     @FXML private void buscarPorCurp() {
         GestorBaseDatos.PacienteInfo paciente = GestorBaseDatos.buscarPacientePorCurp(txtCurpAlumno.getText());
         if (paciente == null) { showAlert("Sin coincidencias", "No se encontró un registro con esa CURP o folio."); return; }
         txtCurpAlumno.setText(paciente.curp); txtNombreAlumno.setText(paciente.nombre); txtGradoGrupo.setText(paciente.gradoGrupo);
+        txtMatricula.setText(com.eyesofter.sincronizacion.ColaSincronizacion.obtenerMatricula(paciente.curp));
         try { dpFechaNacimiento.setValue(paciente.fechaNacimiento == null || paciente.fechaNacimiento.isBlank() ? null : LocalDate.parse(paciente.fechaNacimiento)); } catch (Exception ignored) { }
         txtCurpTutor.setText(paciente.curpTutor == null ? "" : paciente.curpTutor); txtNombreTutor.setText(paciente.nombreTutor == null ? "" : paciente.nombreTutor);
         txtTelefonoTutor.setText(paciente.telefonoTutor == null ? "" : paciente.telefonoTutor); txtCorreoTutor.setText(paciente.correoTutor == null ? "" : paciente.correoTutor);
