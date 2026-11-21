@@ -66,6 +66,7 @@ public final class SesionEvaluacion {
     private static MotorSnellen.TipoOptotipo tipoOptotipo = MotorSnellen.TipoOptotipo.LETRAS;
     private static boolean brilloConfirmado;
     private static Boolean pantallaCoincide;
+    private static CondicionesPrueba.Correccion correccion = CondicionesPrueba.Correccion.NO_REGISTRADO;
 
     public static void registrarFolioEnvio(String folio) { folioEnvio = folio; }
     public static String getFolioEnvio() { return folioEnvio; }
@@ -89,6 +90,7 @@ public final class SesionEvaluacion {
         distanciaVerificadaConCinta = false;
         brilloConfirmado = false;
         pantallaCoincide = null;
+        correccion = CondicionesPrueba.Correccion.NO_REGISTRADO;
         logMarFilaInicial = Double.NaN;
         tipoOptotipo = sugerirOptotipo(edadAnios);
         curpPaciente = valor(curp);
@@ -146,6 +148,10 @@ public final class SesionEvaluacion {
     }
 
     public static void confirmarBrillo(boolean confirmado) { brilloConfirmado = confirmado; }
+    public static void registrarCorreccion(CondicionesPrueba.Correccion c) {
+        correccion = c == null ? CondicionesPrueba.Correccion.NO_REGISTRADO : c;
+    }
+    public static CondicionesPrueba.Correccion getCorreccion() { return correccion; }
     private static double logMarFilaInicial = Double.NaN;
     public static void registrarFilaInicial(double logMar) { logMarFilaInicial = logMar; }
     public static boolean isBrilloConfirmado() { return brilloConfirmado; }
@@ -196,10 +202,11 @@ public final class SesionEvaluacion {
         c.escalaPantalla = escalaPantalla > 0 ? escalaPantalla : 1.0;
         c.pantallaCalibradaCoincide = pantallaCoincide;
         c.distanciaObjetivoM = distanciaMetros;
-        c.toleranciaCm = AppConfig.TOLERANCIA_DISTANCIA_CM;
+        c.toleranciaCm = com.eyesofter.formulas.CalibracionFocal.toleranciaEfectivaCm(AppConfig.TOLERANCIA_DISTANCIA_CM, distanciaMetros * 100.0);
         c.tipoOptotipo = tipoOptotipo == MotorSnellen.TipoOptotipo.E_DIRECCIONAL ? "E direccional" : "Letras";
         c.logMarLimitePantalla = MotorSnellen.mejorLogMarMedible(distanciaMetros * 1000.0, ppi);
         c.brilloConfirmado = brilloConfirmado;
+        c.correccion = correccion;
         c.logMarFilaInicial = logMarFilaInicial;
         c.fuenteOptotipo = AppConfig.FUENTE_OPTOTIPO_DEFECTO;
         c.fuenteInstalada = tipoOptotipo == MotorSnellen.TipoOptotipo.E_DIRECCIONAL

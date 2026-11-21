@@ -76,7 +76,11 @@
                             </TextField>
                         </HBox>
                         <Label fx:id="lblDpEstimada" text="" minHeight="-Infinity" styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" maxWidth="600" />
-                        <CheckBox fx:id="chkBrillo" text="Brillo de la pantalla al máximo, sin reflejos ni luz de frente al paciente" wrapText="true" maxWidth="600" />
+                        <HBox alignment="CENTER" spacing="10">
+                            <Label text="Lentes:" styleClass="etiqueta-subtitulo" />
+                            <ComboBox fx:id="cmbLentes" maxWidth="420" />
+                        </HBox>
+                        <CheckBox fx:id="chkBrillo" text="Brillo al máximo, sin reflejos ni luz de frente al paciente, y “Luz nocturna” o filtro de luz azul desactivado" wrapText="true" maxWidth="600" />
                     </children>
                 </VBox>
 

@@ -57,4 +57,11 @@ class CalibracionFocalTest {
         assertFalse(CalibracionFocal.rostroGirado(100, 160, 131, 60));
         assertTrue(CalibracionFocal.rostroGirado(100, 160, 150, 60));
     }
+
+    @Test
+    void toleranciaProporcionalALaDistancia() {
+        assertEquals(15.0, CalibracionFocal.toleranciaEfectivaCm(15, 300), 1e-9); // 3 m: se respeta la configurada
+        assertEquals(8.0, CalibracionFocal.toleranciaEfectivaCm(15, 80), 1e-9);   // 0.8 m: 10 %, no 19 %
+        assertEquals(5.0, CalibracionFocal.toleranciaEfectivaCm(15, 50), 1e-9);
+    }
 }

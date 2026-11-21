@@ -100,4 +100,20 @@ class ResultadoClinicoTest {
         assertTrue(alertas.contains("Distancia sin verificar"));
         assertTrue(alertas.contains("brillo"));
     }
+
+    @Test
+    void lentesYVozInfantil() {
+        ResultadoClinico r = conEdad(6, 0.1, 0.1);
+        CondicionesPrueba c = new CondicionesPrueba();
+        c.correccion = CondicionesPrueba.Correccion.SIN_SUS_LENTES;
+        r.registrarCondiciones(c);
+        r.registrarMetodoEntrada("Reconocimiento de voz");
+        String alertas = r.getAlertasComoTexto();
+        assertTrue(alertas.contains("se evaluó sin ellos"));
+        assertTrue(alertas.contains("menor de 8 años"));
+
+        ResultadoClinico adulto = conEdad(30, 0.1, 0.1);
+        adulto.registrarMetodoEntrada("Reconocimiento de voz");
+        assertFalse(adulto.getAlertasComoTexto().contains("menor de 8 años"));
+    }
 }

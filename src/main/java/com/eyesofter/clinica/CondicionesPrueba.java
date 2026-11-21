@@ -46,6 +46,19 @@ public final class CondicionesPrueba {
         @Override public String toString() { return texto; }
     }
 
+    /** Si la persona usa lentes y si los traía puestos: cambia lo que significa el resultado. */
+    public enum Correccion {
+        NO_REGISTRADO("no se registró si usa lentes"),
+        NO_USA("no usa lentes"),
+        CON_SUS_LENTES("con sus lentes puestos"),
+        SIN_SUS_LENTES("usa lentes pero se evaluó sin ellos");
+
+        private final String texto;
+        Correccion(String texto) { this.texto = texto; }
+        @Override public String toString() { return texto; }
+    }
+
+    public Correccion correccion = Correccion.NO_REGISTRADO;
     public double ppi = Double.NaN;
     public MetodoPantalla metodoPantalla = MetodoPantalla.DIAGONAL;
     public double escalaPantalla = 1.0;
@@ -82,6 +95,10 @@ public final class CondicionesPrueba {
             avisos.add("Edad desconocida: la distancia se estimó con la distancia interpupilar de un adulto promedio.");
         if (!brilloConfirmado)
             avisos.add("No se confirmó el brillo de la pantalla al máximo y sin reflejos.");
+        if (correccion == Correccion.NO_REGISTRADO)
+            avisos.add("No se registró si la persona usa lentes: no se sabe si el resultado es con o sin corrección.");
+        if (correccion == Correccion.SIN_SUS_LENTES)
+            avisos.add("Usa lentes pero se evaluó sin ellos: el resultado no refleja su visión corregida; repetir con sus lentes.");
         if (!fuenteInstalada)
             avisos.add("La tipografía de optotipos (" + fuenteOptotipo + ") no está instalada; se usó una sustituta.");
         return avisos;
@@ -102,6 +119,7 @@ public final class CondicionesPrueba {
             if (Double.isFinite(dpUsadaMm))
                 sb.append(String.format(Locale.US, "; DP %.1f mm (%s)", dpUsadaMm, fuenteDp));
         }
+        sb.append(". Lentes: ").append(correccion);
         sb.append(". Optotipo: ").append(tipoOptotipo);
         if (Double.isFinite(logMarFilaInicial) && logMarFilaInicial < 1.0 - 1e-9)
             sb.append(String.format(Locale.US, ". Fila inicial LogMAR %.1f (las más grandes no cabían)", logMarFilaInicial));

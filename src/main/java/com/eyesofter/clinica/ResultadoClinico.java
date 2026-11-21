@@ -38,6 +38,8 @@ public final class ResultadoClinico {
     public static final double EDAD_MINIMA_OPTOTIPOS = 3.0;
     /** Edad hasta la que se sugiere la E direccional en lugar de letras. */
     public static final double EDAD_MAXIMA_SUGERIR_E = 6.0;
+    /** Por debajo de esta edad el reconocimiento de voz (modelo entrenado con adultos) es menos confiable. */
+    public static final double EDAD_MAXIMA_VOZ_CONFIABLE = 8.0;
 
     /** Nivel de seguimiento para orientar al usuario; no equivale a diagnóstico ni a una urgencia médica. */
     public enum PrioridadSeguimiento { SIN_BANDERAS, NO_CONCLUYENTE, PROGRAMADA, PREFERENTE, PRIORITARIA }
@@ -316,6 +318,15 @@ public final class ResultadoClinico {
                 if (ojo != null && ojo.isLimitadoPorPantalla())
                     alertas.add((ojo == ojoDerecho ? "OD" : "OI") + " leyó la fila más pequeña que la pantalla puede mostrar; su agudeza real puede ser mejor.");
             }
+        }
+        if (Double.isFinite(edadAnios) && edadAnios < EDAD_MAXIMA_SUGERIR_E && ishiharaTotal > 0) {
+            alertas.add("Tamiz de color en menor de 6 años: las láminas piden reconocer números; un error puede deberse a "
+                    + "no conocerlos. Interpretar con cautela y confirmar con una prueba para preescolares.");
+        }
+        if (Double.isFinite(edadAnios) && edadAnios < EDAD_MAXIMA_VOZ_CONFIABLE
+                && metodoEntrada != null && metodoEntrada.toLowerCase(Locale.ROOT).contains("voz")) {
+            alertas.add("Respuestas capturadas por voz en un menor de 8 años: el reconocedor entiende peor la voz infantil "
+                    + "y un error suyo cuenta como letra no leída. Se prefiere el modo asistido a esta edad.");
         }
         if (condiciones != null) alertas.addAll(condiciones.avisos());
         return Collections.unmodifiableList(alertas);

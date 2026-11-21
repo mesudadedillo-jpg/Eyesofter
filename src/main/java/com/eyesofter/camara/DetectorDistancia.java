@@ -308,7 +308,7 @@ public class DetectorDistancia {
             }
             this.ultimaDistanciaCm = distanciaActualCm;
 
-            double tolerancia = AppConfig.TOLERANCIA_DISTANCIA_CM;
+            double tolerancia = CalibracionFocal.toleranciaEfectivaCm(AppConfig.TOLERANCIA_DISTANCIA_CM, distanciaObjetivoCm);
             double diferencia = Math.abs(distanciaActualCm - distanciaObjetivoCm);
             boolean enRango = ultimoEstadoEnRangoDistancia ? diferencia <= tolerancia + HISTERESIS_CM : diferencia <= tolerancia;
             ultimoEstadoEnRangoDistancia = enRango;

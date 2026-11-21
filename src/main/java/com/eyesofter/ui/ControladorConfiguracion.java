@@ -45,6 +45,7 @@ public class ControladorConfiguracion {
     @FXML private TextField txtDp;
     @FXML private Label lblDpEstimada;
     @FXML private CheckBox chkBrillo;
+    @FXML private ComboBox<com.eyesofter.clinica.CondicionesPrueba.Correccion> cmbLentes;
     @FXML private Label lblEstadoCamara;
 
     /** PPI tal como se cargó (para saber si el operador lo escribió a mano). */
@@ -147,6 +148,8 @@ public class ControladorConfiguracion {
         lblDpEstimada.setText(String.format(Locale.US, "Sin DP medida se usará %.1f mm (%s). Influye en la distancia que mide la cámara.",
                 Antropometria.dpEsperadaMm(edad), Double.isFinite(edad) ? "promedio para la edad" : "promedio adulto"));
         chkBrillo.setSelected(false);
+        cmbLentes.setItems(FXCollections.observableArrayList(com.eyesofter.clinica.CondicionesPrueba.Correccion.values()));
+        cmbLentes.setValue(SesionEvaluacion.getCorreccion());
     }
 
     private static String edadTexto(double edad) {
@@ -224,6 +227,7 @@ public class ControladorConfiguracion {
         if (panelPaciente.isVisible()) {
             SesionEvaluacion.configurarTipoOptotipo(cmbOptotipo.getValue());
             SesionEvaluacion.confirmarBrillo(chkBrillo.isSelected());
+            SesionEvaluacion.registrarCorreccion(cmbLentes.getValue());
             String dp = txtDp.getText() == null ? "" : txtDp.getText().replace(',', '.').trim();
             if (!dp.isEmpty()) {
                 try {

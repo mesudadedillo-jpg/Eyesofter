@@ -75,6 +75,18 @@ public class CalibracionFocal {
         return Math.abs(narizX - medio) / separacionOjosPx > UMBRAL_GIRO;
     }
 
+    /** Fracción máxima de la distancia que se tolera (10 % ≈ 0.04 LogMAR, menos de media fila). */
+    public static final double TOLERANCIA_RELATIVA_MAXIMA = 0.10;
+
+    /**
+     * Tolerancia efectiva: la configurada, pero nunca más del 10 % de la distancia objetivo.
+     * Un margen fijo de ±15 cm es ±5 % a 3 m pero ±19 % a 0.8 m (casi una fila de error).
+     */
+    public static double toleranciaEfectivaCm(double toleranciaConfiguradaCm, double distanciaObjetivoCm) {
+        double relativa = distanciaObjetivoCm * TOLERANCIA_RELATIVA_MAXIMA;
+        return Math.max(3.0, Math.min(toleranciaConfiguradaCm, relativa));
+    }
+
     /** Desplazamiento de la nariz (fracción de la separación de los ojos) a partir del cual se considera girado (~20°). */
     public static final double UMBRAL_GIRO = 0.22;
 

@@ -189,8 +189,10 @@ public class ControladorSnellen implements ControladorDeVista {
     private String instruccionOjo() {
         String como = esE ? "  ·  Indique hacia dónde apuntan las patitas de la E (↑ ↓ ← →)." : "";
         return switch (ojoActual) {
-            case DERECHO -> "👁  Ojo DERECHO · Tape el ojo izquierdo con la palma, sin presionar." + como;
-            case IZQUIERDO -> "👁  Ojo IZQUIERDO · Tape el ojo derecho con la palma, sin presionar." + como;
+            // En niños la palma deja ver entre los dedos (y eso mejora falsamente el ojo evaluado):
+            // se recomienda un parche o tapaojos.
+            case DERECHO -> "👁  Ojo DERECHO · Tape el ojo izquierdo con un parche o tapaojos (o la palma, sin presionar ni dejar ver entre los dedos)." + como;
+            case IZQUIERDO -> "👁  Ojo IZQUIERDO · Tape el ojo derecho con un parche o tapaojos (o la palma, sin presionar ni dejar ver entre los dedos)." + como;
             default -> "👁  Ambos ojos descubiertos." + como;
         };
     }
@@ -790,7 +792,8 @@ public class ControladorSnellen implements ControladorDeVista {
     private void registrarMetricasFiabilidad() {
         long promedio = SesionEvaluacion.getPromedioRespuestaMs();
         // La distancia objetivo se guarda siempre: sin cámara también es una condición de la prueba.
-        SesionEvaluacion.registrarCondicionesDistancia(SesionEvaluacion.getDistanciaMetros(), AppConfig.TOLERANCIA_DISTANCIA_CM);
+        SesionEvaluacion.registrarCondicionesDistancia(SesionEvaluacion.getDistanciaMetros(),
+                com.eyesofter.formulas.CalibracionFocal.toleranciaEfectivaCm(AppConfig.TOLERANCIA_DISTANCIA_CM, SesionEvaluacion.getDistanciaMetros() * 100.0));
         SesionEvaluacion.getResultadoClinico().registrarCondiciones(SesionEvaluacion.construirCondiciones(escalaPantalla()));
         // La DP solo se informa si se MIDIÓ con cinta; la estimada por edad no es una medición del paciente.
         boolean dpMedida = SesionEvaluacion.getFuenteDp() == com.eyesofter.clinica.CondicionesPrueba.FuenteDp.MEDIDA_CON_CINTA;
