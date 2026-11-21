@@ -133,14 +133,29 @@ public final class ColaSincronizacion {
         return ojo.getSnellen().matches("20/\\d{1,3}") ? ojo.getSnellen() : null;
     }
 
+    /**
+     * Observaciones en lenguaje claro: el portal y la app se las muestran al tutor
+     * (C-RC-09), así que no llevan LogMAR ni alertas técnicas. El detalle clínico
+     * completo se queda en el expediente local del escritorio.
+     */
     static String observaciones(ResultadoClinico r) {
-        StringBuilder sb = new StringBuilder();
-        if (r.getAmbosOjos() != null) sb.append("Ambos ojos ").append(r.getAmbosOjos().resumen()).append(". ");
-        if (r.getOjoDerecho() != null) sb.append("OD ").append(r.getOjoDerecho().resumen()).append(". ");
-        if (r.getOjoIzquierdo() != null) sb.append("OI ").append(r.getOjoIzquierdo().resumen()).append(". ");
-        sb.append("Visión de color ").append(r.getIshiharaFormateado()).append(". ");
-        String alertas = r.getAlertasComoTexto();
-        if (!alertas.isBlank()) sb.append(alertas);
+        StringBuilder sb = new StringBuilder("Visión de lejos: ");
+        java.util.List<String> partes = new java.util.ArrayList<>();
+        if (r.getAmbosOjos() != null) partes.add("con ambos ojos " + r.getAmbosOjos().getSnellen());
+        if (r.getOjoDerecho() != null) partes.add("ojo derecho " + r.getOjoDerecho().getSnellen());
+        if (r.getOjoIzquierdo() != null) partes.add("ojo izquierdo " + r.getOjoIzquierdo().getSnellen());
+        sb.append(String.join(", ", partes)).append(". ");
+        if (r.getIshiharaTotal() > 0) {
+            sb.append(r.getIshiharaRespuestasDeficiencia() >= ResultadoClinico.UMBRAL_RESPUESTAS_DEFICIENCIA_COLOR
+                    ? "En la prueba de colores algunas respuestas no coincidieron; conviene revisarlo con un especialista. "
+                    : "Prueba de colores sin hallazgos. ");
+        }
+        double dif = r.getDiferenciaInterocularLogMar();
+        if (Double.isFinite(dif) && dif >= ResultadoClinico.UMBRAL_ASIMETRIA_LINEAS * 0.1 - 1e-9)
+            sb.append("Un ojo ve menos que el otro. ");
+        if ((r.getOjoDerecho() != null && r.getOjoDerecho().getIndiceUltimaFilaCorrecta() < 0)
+                || (r.getOjoIzquierdo() != null && r.getOjoIzquierdo().getIndiceUltimaFilaCorrecta() < 0))
+            sb.append("Con un ojo no alcanzó a leer la letra más grande. ");
         String texto = sb.toString().trim();
         return texto.length() > 500 ? texto.substring(0, 497) + "…" : texto;
     }
