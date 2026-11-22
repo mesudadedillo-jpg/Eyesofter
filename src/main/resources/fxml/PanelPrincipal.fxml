@@ -55,6 +55,11 @@
                             <Label text="Compruebe cámara y micrófono antes de una sesión supervisada." styleClass="etiqueta-subtitulo" wrapText="true" />
                             <Button text="Verificar dispositivos" onAction="#verificarPerifericos" styleClass="boton-acento" />
                         </children></VBox>
+                        <VBox GridPane.columnIndex="0" GridPane.rowIndex="2" GridPane.columnSpan="2" spacing="14" styleClass="tarjeta-accion"><children>
+                            <Label text="App móvil para las familias" styleClass="subtitulo-seccion" />
+                            <Label text="Las familias reciben en su teléfono los resultados, los avisos de la escuela y el pase médico con QR. Muestre el código para que la descarguen." styleClass="etiqueta-subtitulo" wrapText="true" />
+                            <Button text="Descarga la app móvil" onAction="#descargarAppMovil" styleClass="boton-primario" />
+                        </children></VBox>
                     </children>
                 </GridPane>
             </children>
