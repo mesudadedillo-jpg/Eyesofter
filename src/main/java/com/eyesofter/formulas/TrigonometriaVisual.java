@@ -97,6 +97,36 @@ public class TrigonometriaVisual {
     }
 
     /**
+     * Altura mínima (en píxeles FÍSICOS) para que un optotipo conserve su forma.
+     * Un optotipo mide 5 trazos de alto; por debajo de 5 px cada trazo ocupa menos
+     * de un píxel y letras como C, O y D se vuelven indistinguibles: la fila deja de
+     * medir agudeza y pasa a medir la resolución del monitor.
+     */
+    public static final double ALTURA_MINIMA_PX_FISICOS = 5.0;
+
+    /** Altura en píxeles físicos de un optotipo de LogMAR dado a la distancia dada (mm). */
+    public static double alturaPxFisicos(double distanciaMm, double logMar, double ppiFisico) {
+        double mar = Math.pow(10, logMar);
+        return calcularAlturaPixel(calcularAlturaMM(distanciaMm, mar), ppiFisico);
+    }
+
+    /** ¿La pantalla puede dibujar ese nivel sin perder la forma del optotipo? */
+    public static boolean esNivelRepresentable(double distanciaMm, double logMar, double ppiFisico) {
+        return alturaPxFisicos(distanciaMm, logMar, ppiFisico) >= ALTURA_MINIMA_PX_FISICOS - 1e-9;
+    }
+
+    /**
+     * Distancia mínima (mm) a la que un nivel LogMAR alcanza la altura mínima en
+     * píxeles. Sirve para sugerir "aléjese a X m" cuando la pantalla tiene poca densidad.
+     */
+    public static double distanciaMinimaMmParaLogMar(double logMar, double ppiFisico) {
+        if (ppiFisico <= 0) return Double.NaN;
+        double alturaMm = ALTURA_MINIMA_PX_FISICOS / ppiFisico * MM_POR_PULGADA;
+        double mitadAnguloRad = (MINUTOS_ARCO_OPTOTIPO * Math.pow(10, logMar) / 2.0) * Math.PI / (180.0 * 60.0);
+        return alturaMm / (2 * Math.tan(mitadAnguloRad));
+    }
+
+    /**
      * Fórmula 7: Codificación Computarizada LogMAR.
      */
     public static double calcularLogMAR(double vDecimal) {

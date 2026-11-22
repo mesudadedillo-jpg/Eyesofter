@@ -31,6 +31,21 @@ import java.util.Random;
  * Letra por letra (ETDRS): LogMAR = 1.0 + 0.1 − (0.1/3) · aciertos acumulados, contando
  * como leídas las filas saltadas por encima de la última fila perfecta.
  *
+ * <h3>Tipos de optotipo</h3>
+ * <ul>
+ *   <li>{@link TipoOptotipo#LETRAS}: 3 letras Snellen por fila; se lee una fila con 2/3.</li>
+ *   <li>{@link TipoOptotipo#E_DIRECCIONAL}: E de Snellen girada (arriba, abajo, izquierda,
+ *       derecha) para niños que aún no conocen las letras o personas que no leen.
+ *       Con 4 opciones adivinar es más fácil (25 %), por eso hay 4 E por fila, se pide
+ *       3/4 y la puntuación es por fila completa (sin sumar aciertos sueltos).</li>
+ * </ul>
+ *
+ * <h3>Límite de la pantalla</h3>
+ * Una fila cuyo optotipo mide menos de {@link TrigonometriaVisual#ALTURA_MINIMA_PX_FISICOS}
+ * píxeles físicos no se muestra: medir con ella evaluaría el monitor y no la vista.
+ * Si la persona lee la última fila que la pantalla sí puede dibujar, el resultado queda
+ * marcado como "en el límite de la pantalla" (su agudeza real puede ser mejor).
+ *
  * El recorrido se calcula a partir del historial de filas, por lo que
  * {@link #deshacerUltimaFila()} devuelve exactamente al estado anterior.
  */
@@ -47,12 +62,50 @@ public class MotorSnellen {
     /** LogMAR de cada nivel, de mayor (letra grande) a menor. */
     private static final double[] NIVELES_LOGMAR = {1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0, -0.1};
 
+    /** Direcciones de la E (hacia dónde apuntan sus "patitas"). */
+    public static final String E_ARRIBA = "ARRIBA";
+    public static final String E_ABAJO = "ABAJO";
+    public static final String E_IZQUIERDA = "IZQUIERDA";
+    public static final String E_DERECHA = "DERECHA";
+    private static final String[] DIRECCIONES_E = {E_ARRIBA, E_ABAJO, E_IZQUIERDA, E_DERECHA};
+
+    public enum TipoOptotipo {
+        LETRAS("Letras (personas que leen)", 3, 2),
+        E_DIRECCIONAL("E direccional (niños pequeños o personas que no leen)", 4, 3);
+
+        private final String etiqueta;
+        private final int optotiposPorFila;
+        private final int aciertosMinimos;
+
+        TipoOptotipo(String etiqueta, int optotiposPorFila, int aciertosMinimos) {
+            this.etiqueta = etiqueta;
+            this.optotiposPorFila = optotiposPorFila;
+            this.aciertosMinimos = aciertosMinimos;
+        }
+
+        public int optotiposPorFila() { return optotiposPorFila; }
+        public int aciertosMinimos() { return aciertosMinimos; }
+        @Override public String toString() { return etiqueta; }
+    }
+
     private final Random random;
 
     private double distanciaConfiguradaCm = 100.0;
     private double ppiMonitor = 96.0;
     private String fuenteOptotipo = "Arial";
     private double escalaSalida = 1.0;
+    private TipoOptotipo tipo = TipoOptotipo.LETRAS;
+    /** Niveles que la pantalla puede dibujar a la distancia configurada (desde el nivel 0). */
+    private int nivelesMedibles = NIVELES_LOGMAR.length;
+    /**
+     * Primer nivel cuya fila cabe en la ventana. A 3-4 m en una laptop de alta resolución
+     * la fila 20/200 puede ser más ancha que la pantalla; antes se dibujaba cortada.
+     */
+    private int nivelInicial = 0;
+    private double anchoDisponiblePx = Double.NaN;
+    private double altoDisponiblePx = Double.NaN;
+    /** Ancho aproximado de una letra en negrita respecto al tamaño de fuente. */
+    private static final double ANCHO_LETRA_EM = 0.72;
 
     /** Una fila de optotipos ya dimensionados para la interfaz. */
     public static class Fila {
@@ -103,11 +156,90 @@ public class MotorSnellen {
         if (this.detectorDistancia != null) {
             this.detectorDistancia.setDistanciaObjetivo(this.distanciaConfiguradaCm);
         }
+        recalcularNivelesMedibles();
+    }
+
+    public void setTipoOptotipo(TipoOptotipo nuevo) {
+        this.tipo = nuevo == null ? TipoOptotipo.LETRAS : nuevo;
+        recalcularNivelInicial();
+        reiniciarInteractivo();
+    }
+
+    /** Espacio (píxeles lógicos) donde se dibuja la fila de optotipos. */
+    public void setEspacioDisponible(double anchoPx, double altoPx) {
+        this.anchoDisponiblePx = anchoPx;
+        this.altoDisponiblePx = altoPx;
+        recalcularNivelInicial();
+    }
+
+    private void recalcularNivelInicial() {
+        nivelInicial = 0;
+        if (!(anchoDisponiblePx > 0) || !(altoDisponiblePx > 0)) return;
+        while (nivelInicial < nivelesMedibles - 1 && !cabe(nivelInicial)) nivelInicial++;
+    }
+
+    /** ¿La fila de ese nivel cabe a lo ancho (con su espaciado) y a lo alto? */
+    private boolean cabe(int nivel) {
+        double v = TrigonometriaVisual.decimalDesdeLogMAR(NIVELES_LOGMAR[nivel]);
+        int n = tipo.optotiposPorFila();
+        double ancho, alto;
+        if (tipo == TipoOptotipo.E_DIRECCIONAL) {
+            double lado = calcularLadoEEnPixeles(v);
+            ancho = (2 * n - 1) * lado;
+            alto = lado;
+        } else {
+            double fuente = calcularTamanioLetraEnPixeles(v);
+            ancho = (2 * n - 1) * fuente * ANCHO_LETRA_EM;
+            alto = fuente;
+        }
+        return ancho <= anchoDisponiblePx && alto <= altoDisponiblePx;
+    }
+
+    /** Primer nivel que se muestra (0 = 20/200). */
+    public int getNivelInicial() { return nivelInicial; }
+    public double getLogMarFilaInicial() { return NIVELES_LOGMAR[nivelInicial]; }
+
+    public TipoOptotipo getTipoOptotipo() { return tipo; }
+    public int getOptotiposPorFila() { return tipo.optotiposPorFila(); }
+    public int getAciertosMinimosFila() { return tipo.aciertosMinimos(); }
+
+    private void recalcularNivelesMedibles() {
+        nivelesMedibles = contarNivelesMedibles(distanciaConfiguradaCm * 10.0, ppiMonitor);
+        recalcularNivelInicial();
+    }
+
+    /** Niveles (desde 20/200) que se pueden dibujar con al menos la altura mínima en píxeles. */
+    public static int contarNivelesMedibles(double distanciaMm, double ppiFisico) {
+        int n = 0;
+        while (n < NIVELES_LOGMAR.length && TrigonometriaVisual.esNivelRepresentable(distanciaMm, NIVELES_LOGMAR[n], ppiFisico)) n++;
+        return Math.max(1, n);
+    }
+
+    /** Mejor LogMAR que esta pantalla puede medir a esta distancia. */
+    public static double mejorLogMarMedible(double distanciaMm, double ppiFisico) {
+        return NIVELES_LOGMAR[contarNivelesMedibles(distanciaMm, ppiFisico) - 1];
+    }
+
+    public int getNivelesMedibles() { return nivelesMedibles; }
+
+    /** LogMAR de la fila más pequeña que esta pantalla puede dibujar a la distancia configurada. */
+    public double getLogMarLimitePantalla() { return NIVELES_LOGMAR[nivelesMedibles - 1]; }
+
+    /** ¿La pantalla impide mostrar filas que la escala normal sí tendría? */
+    public boolean hayFilasNoMedibles() { return nivelesMedibles < NIVELES_LOGMAR.length; }
+
+    /**
+     * La persona leyó la fila más pequeña que la pantalla puede dibujar y existían
+     * filas más pequeñas: su agudeza real puede ser mejor que la registrada.
+     */
+    public boolean isLimitadoPorPantalla() {
+        return hayFilasNoMedibles() && getIndiceUltimaFilaCorrecta() == nivelesMedibles - 1;
     }
 
     /** Escalado de Windows de la pantalla donde se dibuja (1.25 = 125 %). */
     public void setEscalaSalida(double escala) {
         this.escalaSalida = escala > 0 ? escala : 1.0;
+        recalcularNivelInicial();
     }
 
     /**
@@ -120,6 +252,20 @@ public class MotorSnellen {
         double hMm = TrigonometriaVisual.calcularAlturaMM(dMm, mar);
         double factorFuente = FuentesOptotipo.factorDeCorreccion(fuenteOptotipo);
         return TrigonometriaVisual.calcularTamanioFuenteLogico(hMm, ppiMonitor, factorFuente, escalaSalida);
+    }
+
+    /**
+     * Lado (alto = ancho) de la E direccional en píxeles LÓGICOS. Se dibuja con figuras
+     * geométricas (no con una fuente), así que no necesita factor tipográfico.
+     */
+    public double calcularLadoEEnPixeles(double vDecimal) {
+        double hMm = TrigonometriaVisual.calcularAlturaMM(distanciaConfiguradaCm * 10.0, TrigonometriaVisual.calcularMAR(vDecimal));
+        return TrigonometriaVisual.calcularAlturaPixel(hMm, ppiMonitor) / escalaSalida;
+    }
+
+    /** Altura en píxeles físicos del optotipo de un nivel (para el informe y las pruebas). */
+    public double calcularAlturaPxFisicos(double vDecimal) {
+        return TrigonometriaVisual.calcularAlturaPixel(calcularAlturaMm(vDecimal), ppiMonitor);
     }
 
     /** Altura física (mm) de la letra de un nivel: útil para verificar con una regla. */
@@ -139,6 +285,27 @@ public class MotorSnellen {
         return bolsa.subList(0, Math.min(cantidad, bolsa.size())).toArray(new String[0]);
     }
 
+    /**
+     * Direcciones al azar sin dos iguales seguidas. No se usa una permutación de las 4
+     * (cada una exactamente una vez) porque la última se podría deducir por descarte.
+     */
+    private String[] direccionesAleatorias(int cantidad) {
+        String[] fila = new String[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            String d;
+            do { d = DIRECCIONES_E[random.nextInt(DIRECCIONES_E.length)]; }
+            while (i > 0 && d.equals(fila[i - 1]));
+            fila[i] = d;
+        }
+        return fila;
+    }
+
+    private String[] optotiposParaFila() {
+        return tipo == TipoOptotipo.E_DIRECCIONAL
+                ? direccionesAleatorias(tipo.optotiposPorFila())
+                : letrasDistintas(tipo.optotiposPorFila());
+    }
+
     // =====================================================================
     // Recorrido fila por fila
     // =====================================================================
@@ -150,29 +317,29 @@ public class MotorSnellen {
 
     /** Nivel que corresponde evaluar a continuación, o -1 si la prueba terminó. */
     public int calcularSiguienteNivel() {
-        if (historial.isEmpty()) return 0;
+        if (historial.isEmpty()) return nivelInicial;
         FilaEvaluada ultima = historial.get(historial.size() - 1);
 
         // ¿Seguimos en cribado? (todas las filas evaluadas fueron perfectas y en saltos)
         boolean cribado = true;
         for (int i = 0; i < historial.size(); i++) {
             FilaEvaluada f = historial.get(i);
-            if (f.aciertos() < LETRAS_POR_FILA || f.nivel() != i * SALTO_CRIBADO) { cribado = false; break; }
+            if (f.aciertos() < tipo.optotiposPorFila() || f.nivel() != nivelInicial + i * SALTO_CRIBADO) { cribado = false; break; }
         }
         if (cribado) {
             int salto = ultima.nivel() + SALTO_CRIBADO;
-            if (salto < NIVELES_LOGMAR.length) return salto;
+            if (salto < nivelesMedibles) return salto;
             // Ya no caben saltos: se afinan las filas restantes de una en una.
         }
 
         int ultimaPerfecta = nivelUltimaPerfectaContigua();
-        int siguiente = ultimaPerfecta + 1;
-        while (siguiente < NIVELES_LOGMAR.length && buscar(siguiente) != null) {
+        int siguiente = Math.max(ultimaPerfecta + 1, nivelInicial);
+        while (siguiente < nivelesMedibles && buscar(siguiente) != null) {
             FilaEvaluada ya = buscar(siguiente);
-            if (ya.aciertos() < ACIERTOS_MINIMOS_FILA) return -1;
+            if (ya.aciertos() < tipo.aciertosMinimos()) return -1;
             siguiente++;
         }
-        return siguiente < NIVELES_LOGMAR.length ? siguiente : -1;
+        return siguiente < nivelesMedibles ? siguiente : -1;
     }
 
     /** Última fila perfecta del cribado (las anteriores se dan por leídas). -1 si ninguna. */
@@ -180,7 +347,7 @@ public class MotorSnellen {
         int nivel = -1;
         for (int i = 0; i < historial.size(); i++) {
             FilaEvaluada f = historial.get(i);
-            if (f.aciertos() == LETRAS_POR_FILA && f.nivel() == i * SALTO_CRIBADO) nivel = f.nivel();
+            if (f.aciertos() == tipo.optotiposPorFila() && f.nivel() == nivelInicial + i * SALTO_CRIBADO) nivel = f.nivel();
             else break;
         }
         return nivel;
@@ -198,10 +365,11 @@ public class MotorSnellen {
     /** Genera la siguiente fila según la escalera. Llamar solo si {@link #haySiguienteFila()}. */
     public Fila generarSiguienteFila() {
         int nivel = calcularSiguienteNivel();
-        if (nivel < 0) nivel = NIVELES_LOGMAR.length - 1;
+        if (nivel < 0) nivel = nivelesMedibles - 1;
         double logMar = NIVELES_LOGMAR[nivel];
         double vDecimal = TrigonometriaVisual.decimalDesdeLogMAR(logMar);
-        filaPendiente = new Fila(letrasDistintas(LETRAS_POR_FILA), vDecimal, logMar, nivel, calcularTamanioLetraEnPixeles(vDecimal));
+        double tamanio = tipo == TipoOptotipo.E_DIRECCIONAL ? calcularLadoEEnPixeles(vDecimal) : calcularTamanioLetraEnPixeles(vDecimal);
+        filaPendiente = new Fila(optotiposParaFila(), vDecimal, logMar, nivel, tamanio);
         return filaPendiente;
     }
 
@@ -244,18 +412,36 @@ public class MotorSnellen {
     public int getAciertosPuntuados() {
         int ultimaPerfecta = nivelUltimaPerfectaContigua();
         int total = 0;
-        for (int nivel = 0; nivel <= ultimaPerfecta; nivel++) {
+        // Filas más grandes que no cupieron: se dan por leídas si leyó la primera fila mostrada (criterio ETDRS).
+        FilaEvaluada primera = buscar(nivelInicial);
+        if (nivelInicial > 0 && primera != null && primera.aciertos() >= tipo.aciertosMinimos()) {
+            total += nivelInicial * tipo.optotiposPorFila();
+        }
+        for (int nivel = nivelInicial; nivel <= ultimaPerfecta; nivel++) {
             FilaEvaluada f = buscar(nivel);
-            total += f != null ? f.aciertos() : LETRAS_POR_FILA;
+            total += f != null ? f.aciertos() : tipo.optotiposPorFila();
         }
         for (FilaEvaluada f : historial) if (f.nivel() > ultimaPerfecta) total += f.aciertos();
         return total;
     }
 
-    /** LogMAR letra por letra. NaN si no se evaluó ninguna fila. */
+    /**
+     * LogMAR final. NaN si no se evaluó ninguna fila.
+     * <ul>
+     *   <li>Letras: letra por letra (ETDRS).</li>
+     *   <li>E direccional: LogMAR de la fila más pequeña leída (≥ 3/4); 1.1 si no leyó 20/200.
+     *       Sumar aciertos sueltos premiaría las respuestas al azar (25 % con 4 opciones).</li>
+     * </ul>
+     */
     public double getLogMarPuntuado() {
         if (historial.isEmpty()) return Double.NaN;
-        double valor = TrigonometriaVisual.calcularPuntuacionETDRS(NIVELES_LOGMAR[0], LETRAS_POR_FILA, getAciertosPuntuados());
+        double valor;
+        if (tipo == TipoOptotipo.E_DIRECCIONAL) {
+            int indice = getIndiceUltimaFilaCorrecta();
+            valor = indice < 0 ? NIVELES_LOGMAR[nivelInicial] + 0.1 : NIVELES_LOGMAR[indice];
+        } else {
+            valor = TrigonometriaVisual.calcularPuntuacionETDRS(NIVELES_LOGMAR[0], tipo.optotiposPorFila(), getAciertosPuntuados());
+        }
         return Math.round(valor * 100.0) / 100.0;
     }
 
@@ -266,14 +452,14 @@ public class MotorSnellen {
         return total;
     }
 
-    public int getLetrasEvaluadasTotales() { return historial.size() * LETRAS_POR_FILA; }
+    public int getLetrasEvaluadasTotales() { return historial.size() * tipo.optotiposPorFila(); }
 
     public int getFilasEvaluadas() { return historial.size(); }
 
     /** Nivel más pequeño leído (≥ 2/3, o dado por leído en el cribado). -1 si no leyó 20/200. */
     public int getIndiceUltimaFilaCorrecta() {
         int mejor = nivelUltimaPerfectaContigua();
-        for (FilaEvaluada f : historial) if (f.aciertos() >= ACIERTOS_MINIMOS_FILA) mejor = Math.max(mejor, f.nivel());
+        for (FilaEvaluada f : historial) if (f.aciertos() >= tipo.aciertosMinimos()) mejor = Math.max(mejor, f.nivel());
         return mejor;
     }
 

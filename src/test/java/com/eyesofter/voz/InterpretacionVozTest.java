@@ -2,6 +2,7 @@ package com.eyesofter.voz;
 
 import org.junit.jupiter.api.Test;
 
+import static com.eyesofter.voz.ReconocedorOptotipos.ModoPrueba.DIRECCIONES;
 import static com.eyesofter.voz.ReconocedorOptotipos.ModoPrueba.ISHIHARA;
 import static com.eyesofter.voz.ReconocedorOptotipos.ModoPrueba.SNELLEN;
 import static com.eyesofter.voz.ReconocedorOptotipos.interpretarSinModelo;
@@ -50,5 +51,16 @@ class InterpretacionVozTest {
         byte[] fuerte = new byte[3200];
         for (int i = 0; i < fuerte.length; i += 2) { fuerte[i] = (byte) 0xFF; fuerte[i + 1] = (byte) 0x3F; }
         assertTrue(ReconocedorOptotipos.nivelRms(fuerte, fuerte.length) > 85);
+    }
+
+    @Test
+    void direccionesDeLaE() {
+        assertEquals("ARRIBA", interpretarSinModelo(DIRECCIONES, "arriba"));
+        assertEquals("ABAJO", interpretarSinModelo(DIRECCIONES, "para abajo"));
+        assertEquals("IZQUIERDA", interpretarSinModelo(DIRECCIONES, "a la izquierda"));
+        assertEquals("DERECHA", interpretarSinModelo(DIRECCIONES, "hacia la derecha"));
+        assertEquals("DERECHA", interpretarSinModelo(DIRECCIONES, "pa la derecha"));
+        assertEquals(ReconocedorOptotipos.RESPUESTA_NO_SE, interpretarSinModelo(DIRECCIONES, "no se"));
+        assertEquals(ReconocedorOptotipos.RUIDO, interpretarSinModelo(DIRECCIONES, "mesa"));
     }
 }

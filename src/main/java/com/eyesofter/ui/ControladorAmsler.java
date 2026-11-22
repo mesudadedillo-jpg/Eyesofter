@@ -33,6 +33,9 @@ public class ControladorAmsler implements ControladorDeVista {
 
     private static final int CUADROS = 20;
     private static final double LADO_CUADRO_MM = 5.0;
+    /** Distancia a la que un cuadro de 5 mm subtiende 1°. */
+    private static final double DISTANCIA_ESTANDAR_CM = LADO_CUADRO_MM / 10.0 / Math.tan(Math.toRadians(1.0));
+    private double distanciaCm = DISTANCIA_ESTANDAR_CM;
 
     private final boolean[][] marcasDerecho = new boolean[CUADROS][CUADROS];
     private final boolean[][] marcasIzquierdo = new boolean[CUADROS][CUADROS];
@@ -48,7 +51,12 @@ public class ControladorAmsler implements ControladorDeVista {
         ladoPx = TrigonometriaVisual.calcularAlturaPixel(LADO_CUADRO_MM, AppConfig.PPI_ESTANDAR_MONITOR) / escala;
         double maximo = Math.min(Screen.getPrimary().getVisualBounds().getHeight() - 260, 760);
         boolean reducida = ladoPx * CUADROS > maximo;
+        double ladoIdeal = ladoPx;
         if (reducida) ladoPx = maximo / CUADROS;
+        // Cada cuadro debe medir 1°: 5 mm a 28.6 cm. Antes se pedía "30-40 cm": a 40 cm la
+        // rejilla cubre 14° en vez de 20° y deja fuera parte de la zona que se quiere explorar.
+        // Si la rejilla se redujo, la distancia se acorta en la misma proporción.
+        distanciaCm = DISTANCIA_ESTANDAR_CM * ladoPx / ladoIdeal;
 
         lienzo = new Canvas(ladoPx * CUADROS + 2, ladoPx * CUADROS + 2);
         lienzo.setOnMousePressed(e -> {
@@ -62,7 +70,7 @@ public class ControladorAmsler implements ControladorDeVista {
 
         Label titulo = new Label("Rejilla de Amsler");
         titulo.getStyleClass().add("etiqueta-titulo");
-        Label instrucciones = new Label("1. Siéntese a 30–40 cm de la pantalla (use lentes de lectura si los usa).\n"
+        Label instrucciones = new Label(String.format(Locale.US, "1. Siéntese a %.0f cm de la pantalla (mídalo con una regla; use lentes de lectura si los usa).\n", distanciaCm)
                 + "2. Tape un ojo y mire fijamente el punto central, sin mover la vista.\n"
                 + "3. ¿Alguna línea se ve ondulada, borrosa, o falta algún cuadro? Haga clic o arrastre sobre esas zonas.");
         instrucciones.setWrapText(true);
@@ -89,7 +97,7 @@ public class ControladorAmsler implements ControladorDeVista {
         lblResumen.setMaxWidth(460);
 
         Label nota = new Label(reducida
-                ? "La pantalla es pequeña para el tamaño estándar: la rejilla se redujo. Acerque a la persona proporcionalmente."
+                ? String.format(Locale.US, "La pantalla es pequeña para el tamaño estándar: la rejilla se redujo, por eso la distancia es %.0f cm en lugar de 29 cm.", distanciaCm)
                 : String.format(Locale.US, "Cuadros de %.0f mm reales (PPI %.0f). Si el tamaño no coincide con una regla, calibre la pantalla en Herramientas.",
                 LADO_CUADRO_MM, AppConfig.PPI_ESTANDAR_MONITOR));
         nota.setWrapText(true);

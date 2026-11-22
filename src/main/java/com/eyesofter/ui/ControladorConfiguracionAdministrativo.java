@@ -153,8 +153,9 @@ public class ControladorConfiguracionAdministrativo implements VistaAdministrati
     }
 
     private void actualizarResumen() {
-        lblEntorno.setText(String.format("Distancia: %.1f m · PPI: %.0f · Focal: %s", AppConfig.DISTANCIA_OBJETIVO_METROS_DEFECTO,
-                AppConfig.PPI_ESTANDAR_MONITOR, AppConfig.DISTANCIA_FOCAL_CAMARA_PX > 0 ? String.format("%.0f px", AppConfig.DISTANCIA_FOCAL_CAMARA_PX) : "sin calibrar"));
+        lblEntorno.setText(String.format("Distancia: %.1f m · PPI: %.0f (%s) · Cámara: %s", AppConfig.DISTANCIA_OBJETIVO_METROS_DEFECTO,
+                AppConfig.PPI_ESTANDAR_MONITOR, "TARJETA".equals(AppConfig.METODO_PPI) ? "medido con tarjeta" : "sin medir con tarjeta",
+                AppConfig.FOCAL_CAMARA_NORMALIZADA > 0 ? "calibrada" : "sin calibrar"));
     }
 
     private void actualizarTemaTexto() {

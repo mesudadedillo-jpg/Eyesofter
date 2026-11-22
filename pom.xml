@@ -37,7 +37,8 @@
         <dependency>
             <groupId>org.openpnp</groupId>
             <artifactId>opencv</artifactId>
-            <version>4.5.1-2</version>
+            <!-- 4.9 incluye FaceDetectorYN (YuNet) para ubicar los ojos -->
+            <version>4.9.0-0</version>
         </dependency>
         <!-- JNA: Requerido por Vosk para acceder al hardware nativo -->
         <dependency>

@@ -194,11 +194,11 @@ public class ControladorPantallaTest {
                 int aciertos = 0;
                 int totalPruebas = 3;
 
-                // MODIFICACIÓN 5: Detección automática de resolución/DPI del monitor principal
+                // Screen.getDpi() devuelve el DPI LÓGICO (en Windows casi siempre 96), no el físico:
+                // se usa el PPI calibrado y se corrige el escalado de la pantalla.
                 Screen pantallaPrincipal = Screen.getPrimary();
-                double dpiDinamico = pantallaPrincipal.getDpi();
-                // Fallback por si el sistema operativo no devuelve un DPI válido
-                if (dpiDinamico <= 0) dpiDinamico = AppConfig.PPI_ESTANDAR_MONITOR;
+                double escala = pantallaPrincipal.getOutputScaleY() > 0 ? pantallaPrincipal.getOutputScaleY() : 1.0;
+                double dpiDinamico = AppConfig.PPI_ESTANDAR_MONITOR / escala;
 
                 for (int i = 0; i < totalPruebas; i++) {
                     String letraActual = letras[random.nextInt(letras.length)];

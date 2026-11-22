@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.Slider?>
 <?import javafx.scene.control.TextField?>
@@ -13,8 +16,14 @@
 <!-- El StackPane actúa como fondo a pantalla completa y carga el CSS -->
 <StackPane stylesheets="@../css/estilos.css" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorConfiguracion">
     <children>
+      <!-- Con desplazamiento: en pantallas bajas los textos de ayuda ya no se cortan con "…" -->
+      <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="scroll-transparente">
+        <content>
+        <StackPane>
+        <padding><Insets top="20.0" bottom="20.0" /></padding>
+        <children>
         <!-- Tarjeta Central Mágica -->
-        <VBox alignment="CENTER" spacing="25.0" styleClass="contenedor-principal" maxWidth="800" maxHeight="-Infinity">
+        <VBox alignment="CENTER" spacing="14.0" styleClass="contenedor-principal" maxWidth="800" maxHeight="-Infinity">
             <children>
                 <HBox alignment="CENTER_LEFT" spacing="8"><Button text="← Regresar" onAction="#volver" styleClass="boton-secundario"/><Button text="Salir" onAction="#salirAplicacion" styleClass="boton-salir"/></HBox>
 
@@ -43,18 +52,39 @@
                     </TextField>
                     <Button text="📐 Medir con tarjeta" onAction="#medirConTarjeta" styleClass="boton-acento"/>
                 </HBox>
-                <Label fx:id="lblResolucion" text="Detectando resolución de pantalla…" styleClass="etiqueta-subtitulo" />
+                <Label fx:id="lblResolucion" text="Detectando resolución de pantalla…" styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" maxWidth="640" minHeight="-Infinity" />
 
                 <Separator />
 
-                <!-- Calibración de cámara: solo personal técnico -->
-                <Label text="Focal calibrada de cámara (px, opcional)" styleClass="etiqueta-instruccion" style="-fx-font-size: 18px; -fx-text-fill: #073B4C;" />
-                <TextField fx:id="txtFocalCamara" promptText="Ej. 1420.50" styleClass="campo-texto" maxWidth="200" alignment="CENTER">
-                    <tooltip>
-                        <Tooltip text="Ingrese únicamente el valor obtenido mediante calibración de cámara. Sin este valor la distancia pupilar se reporta como N/D." />
-                    </tooltip>
-                </TextField>
-                <Label text="Se calcula sola con “Calibrar a esta distancia” en la pantalla de posición. No escriba un valor estimado." styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" maxWidth="540" />
+                <!-- Qué alcanza a medir esta pantalla a esta distancia -->
+                <Label fx:id="lblLimite" text="" minHeight="-Infinity" styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" maxWidth="640" />
+
+                <Separator />
+
+                <!-- Datos del paciente que ajustan la prueba (solo con paciente) -->
+                <VBox fx:id="panelPaciente" alignment="CENTER" spacing="12">
+                    <children>
+                        <Label text="Tipo de optotipo" styleClass="etiqueta-instruccion" style="-fx-font-size: 20px; -fx-text-fill: #073B4C;" />
+                        <ComboBox fx:id="cmbOptotipo" maxWidth="520" />
+                        <Label fx:id="lblSugerenciaOptotipo" text="" minHeight="-Infinity" styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" maxWidth="600" />
+                        <HBox alignment="CENTER" spacing="10">
+                            <Label text="Distancia entre pupilas (DP, mm, opcional):" styleClass="etiqueta-subtitulo" />
+                            <TextField fx:id="txtDp" promptText="Ej. 58" styleClass="campo-texto" maxWidth="110" alignment="CENTER">
+                                <tooltip>
+                                    <Tooltip text="Si la clínica la midió con regla o pupilómetro. Sin este dato se estima por la edad." />
+                                </tooltip>
+                            </TextField>
+                        </HBox>
+                        <Label fx:id="lblDpEstimada" text="" minHeight="-Infinity" styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" maxWidth="600" />
+                        <HBox alignment="CENTER" spacing="10">
+                            <Label text="Lentes:" styleClass="etiqueta-subtitulo" />
+                            <ComboBox fx:id="cmbLentes" maxWidth="420" />
+                        </HBox>
+                        <CheckBox fx:id="chkBrillo" text="Brillo al máximo, sin reflejos ni luz de frente al paciente, y “Luz nocturna” o filtro de luz azul desactivado" wrapText="true" maxWidth="600" />
+                    </children>
+                </VBox>
+
+                <Label fx:id="lblEstadoCamara" text="" minHeight="-Infinity" styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" maxWidth="600" />
 
                 <Separator />
 
@@ -64,8 +94,12 @@
 
             </children>
             <padding>
-                <Insets bottom="50.0" left="50.0" right="50.0" top="50.0" />
+                <Insets bottom="30.0" left="40.0" right="40.0" top="30.0" />
             </padding>
         </VBox>
+        </children>
+        </StackPane>
+        </content>
+      </ScrollPane>
     </children>
 </StackPane>

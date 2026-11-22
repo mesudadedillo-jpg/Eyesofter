@@ -23,8 +23,37 @@ public final class ResultadoClinico {
     public static final double LOGMAR_MARCADAMENTE_REDUCIDA = 0.8;
     public static final double LOGMAR_REDUCIDA = 0.3;
 
+    /**
+     * Línea que un niño debe leer para pasar el tamizaje según su edad (criterios de
+     * referencia pediátrica AAPOS/AAP 2016: 3 años → 20/50, 4 años → 20/40,
+     * 5 años o más → 20/32). Son configurables: un oftalmólogo puede ajustarlos.
+     * Antes se usaba 20/40 para todas las edades: a los 3 años eso enviaba a
+     * consulta a niños con visión normal para su edad, y de los 5 años en adelante
+     * dejaba pasar a niños que no leían la línea 20/32.
+     */
+    public static final double LINEA_APROBATORIA_3_ANIOS = 0.4;
+    public static final double LINEA_APROBATORIA_4_ANIOS = 0.3;
+    public static final double LINEA_APROBATORIA_5_A_17_ANIOS = 0.2;
+    /** Por debajo de esta edad los optotipos no son confiables (se sugiere fotocribado o valoración). */
+    public static final double EDAD_MINIMA_OPTOTIPOS = 3.0;
+    /** Edad hasta la que se sugiere la E direccional en lugar de letras. */
+    public static final double EDAD_MAXIMA_SUGERIR_E = 6.0;
+    /** Por debajo de esta edad el reconocimiento de voz (modelo entrenado con adultos) es menos confiable. */
+    public static final double EDAD_MAXIMA_VOZ_CONFIABLE = 8.0;
+
     /** Nivel de seguimiento para orientar al usuario; no equivale a diagnóstico ni a una urgencia médica. */
-    public enum PrioridadSeguimiento { SIN_BANDERAS, PROGRAMADA, PREFERENTE, PRIORITARIA }
+    public enum PrioridadSeguimiento { SIN_BANDERAS, NO_CONCLUYENTE, PROGRAMADA, PREFERENTE, PRIORITARIA }
+
+    /**
+     * LogMAR de la línea aprobatoria para la edad, o NaN si no aplica un criterio
+     * pediátrico (adultos, edad desconocida o menores de 3 años).
+     */
+    public static double lineaAprobatoriaParaEdad(double edadAnios) {
+        if (!Double.isFinite(edadAnios) || edadAnios < EDAD_MINIMA_OPTOTIPOS || edadAnios >= 18) return Double.NaN;
+        if (edadAnios < 4) return LINEA_APROBATORIA_3_ANIOS;
+        if (edadAnios < 5) return LINEA_APROBATORIA_4_ANIOS;
+        return LINEA_APROBATORIA_5_A_17_ANIOS;
+    }
 
     public enum Ojo {
         AMBOS("Ambos ojos", "AO"),
@@ -52,9 +81,13 @@ public final class ResultadoClinico {
         private final Double logMar;
         private final Double dioptriasEgger;
         private final int lineasPerdidas;
+        /** LogMAR de la fila más pequeña leída (criterio de línea); NaN si no leyó 20/200. */
+        private final double logMarFilaLeida;
+        private final boolean limitadoPorPantalla;
 
         private ResultadoOjo(int indiceUltimaFilaCorrecta, int aciertos, int letrasEvaluadas,
-                             String snellen, Double logMar, Double dioptriasEgger, int lineasPerdidas) {
+                             String snellen, Double logMar, Double dioptriasEgger, int lineasPerdidas,
+                             double logMarFilaLeida, boolean limitadoPorPantalla) {
             this.indiceUltimaFilaCorrecta = indiceUltimaFilaCorrecta;
             this.aciertos = aciertos;
             this.letrasEvaluadas = letrasEvaluadas;
@@ -62,6 +95,8 @@ public final class ResultadoClinico {
             this.logMar = logMar;
             this.dioptriasEgger = dioptriasEgger;
             this.lineasPerdidas = lineasPerdidas;
+            this.logMarFilaLeida = logMarFilaLeida;
+            this.limitadoPorPantalla = limitadoPorPantalla;
         }
 
         /**
@@ -74,19 +109,28 @@ public final class ResultadoClinico {
             int total = motor.getLetrasEvaluadasTotales();
             double logMar = motor.getLogMarPuntuado();
             if (!Double.isFinite(logMar)) {
-                return new ResultadoOjo(-1, aciertos, total, "N/D", null, null, MotorSnellen.getNumeroNiveles());
+                return new ResultadoOjo(-1, aciertos, total, "N/D", null, null, MotorSnellen.getNumeroNiveles(), Double.NaN, false);
             }
             int perdidas = Math.max(0, (int) Math.round(logMar / 0.1));
-            String snellen = indice < 0 ? "<20/200" : TrigonometriaVisual.snellenDesdeLogMAR(logMar);
-            return new ResultadoOjo(indice, aciertos, total, snellen, logMar, null, perdidas);
+            // Si la fila 20/200 no cupo en la pantalla, "no leyó la primera fila" es "<" esa fila, no "<20/200".
+            String snellen = indice < 0 ? "<" + TrigonometriaVisual.snellenDesdeLogMAR(motor.getLogMarFilaInicial())
+                    : TrigonometriaVisual.snellenDesdeLogMAR(logMar);
+            return new ResultadoOjo(indice, aciertos, total, snellen, logMar, null, perdidas,
+                    indice < 0 ? Double.NaN : MotorSnellen.getNivelLogMar(indice), motor.isLimitadoPorPantalla());
         }
 
         /** Para pruebas y vistas: resultado a partir de un LogMAR ya calculado. */
         public static ResultadoOjo desdeLogMar(double logMar) {
+            return desdeLogMar(logMar, false);
+        }
+
+        /** Igual que {@link #desdeLogMar(double)}, indicando si el resultado tocó el límite de la pantalla. */
+        public static ResultadoOjo desdeLogMar(double logMar, boolean limitadoPorPantalla) {
             int perdidas = Math.max(0, (int) Math.round(logMar / 0.1));
             int indice = logMar > 1.0 + 1e-9 ? -1 : 0;
             String snellen = indice < 0 ? "<20/200" : TrigonometriaVisual.snellenDesdeLogMAR(logMar);
-            return new ResultadoOjo(indice, 0, 0, snellen, logMar, null, perdidas);
+            double fila = indice < 0 ? Double.NaN : Math.round(logMar * 10.0) / 10.0;
+            return new ResultadoOjo(indice, 0, 0, snellen, logMar, null, perdidas, fila, limitadoPorPantalla);
         }
 
         public int getIndiceUltimaFilaCorrecta() { return indiceUltimaFilaCorrecta; }
@@ -96,6 +140,9 @@ public final class ResultadoClinico {
         public Double getLogMar() { return logMar; }
         public Double getDioptriasEgger() { return dioptriasEgger; }
         public int getLineasPerdidas() { return lineasPerdidas; }
+        public double getLogMarFilaLeida() { return logMarFilaLeida; }
+        /** La persona leyó la fila más pequeña que la pantalla podía dibujar: su agudeza real puede ser mejor. */
+        public boolean isLimitadoPorPantalla() { return limitadoPorPantalla; }
 
         public String getLogMarFormateado() {
             return logMar == null ? "N/D" : String.format(Locale.US, "%.2f", logMar);
@@ -106,7 +153,7 @@ public final class ResultadoClinico {
         }
 
         public String resumen() {
-            return snellen + " | LogMAR " + getLogMarFormateado();
+            return snellen + (limitadoPorPantalla ? " o mejor (límite de la pantalla)" : "") + " | LogMAR " + getLogMarFormateado();
         }
 
         /** Agudeza decimal equivalente (NaN si no hay LogMAR). */
@@ -129,6 +176,8 @@ public final class ResultadoClinico {
     private double distanciaObjetivoMetros = Double.NaN;
     private double toleranciaDistanciaCm = Double.NaN;
     private String metodoEntrada = "No registrado";
+    private double edadAnios = Double.NaN;
+    private CondicionesPrueba condiciones;
 
     public void registrarOjo(Ojo ojo, ResultadoOjo resultado) {
         if (ojo == Ojo.DERECHO) ojoDerecho = resultado;
@@ -156,6 +205,20 @@ public final class ResultadoClinico {
     public void registrarCondicionesDistancia(double objetivoMetros, double toleranciaCm) {
         distanciaObjetivoMetros = objetivoMetros;
         toleranciaDistanciaCm = toleranciaCm;
+    }
+
+    /** Edad en años decimales (NaN si se desconoce). Ajusta los criterios de referencia. */
+    public void registrarEdad(double anios) { edadAnios = anios; }
+    public double getEdadAnios() { return edadAnios; }
+
+    public void registrarCondiciones(CondicionesPrueba c) { condiciones = c; }
+    public CondicionesPrueba getCondiciones() { return condiciones; }
+
+    public String getEdadFormateada() {
+        if (!Double.isFinite(edadAnios)) return "N/D";
+        int anios = (int) Math.floor(edadAnios);
+        int meses = (int) Math.floor((edadAnios - anios) * 12);
+        return anios < 6 && meses > 0 ? anios + " años " + meses + " meses" : anios + " años";
     }
 
     public void registrarMetodoEntrada(String metodo) {
@@ -224,12 +287,74 @@ public final class ResultadoClinico {
             alertas.add("Fiabilidad limitada: cumplimiento de distancia menor a " + (int) MINIMO_CUMPLIMIENTO_DISTANCIA_PCT + "%.");
         }
         if (ojoDerecho != null && ojoDerecho.getIndiceUltimaFilaCorrecta() < 0) {
-            alertas.add("ALERTA: OD no alcanzó la línea 20/200; requiere valoración profesional prioritaria.");
+            alertas.add("ALERTA: OD no alcanzó la línea más grande mostrada (" + ojoDerecho.getSnellen().replace("<", "") + "); requiere valoración profesional prioritaria.");
         }
         if (ojoIzquierdo != null && ojoIzquierdo.getIndiceUltimaFilaCorrecta() < 0) {
-            alertas.add("ALERTA: OI no alcanzó la línea 20/200; requiere valoración profesional prioritaria.");
+            alertas.add("ALERTA: OI no alcanzó la línea más grande mostrada (" + ojoIzquierdo.getSnellen().replace("<", "") + "); requiere valoración profesional prioritaria.");
         }
+        double linea = lineaAprobatoriaParaEdad(edadAnios);
+        if (Double.isFinite(linea)) {
+            for (ResultadoOjo ojo : new ResultadoOjo[]{ojoDerecho, ojoIzquierdo}) {
+                if (ojo == null || ojo.getLogMar() == null) continue;
+                String nombre = ojo == ojoDerecho ? "OD" : "OI";
+                if (noPasaLinea(ojo, linea) && !ojo.isLimitadoPorPantalla() && !esAgudezaMarcadamenteReducida(ojo)) {
+                    alertas.add("ALERTA: " + nombre + " no leyó la línea " + TrigonometriaVisual.snellenDesdeLogMAR(linea)
+                            + ", esperada para " + getEdadFormateada() + "; referir a valoración.");
+                }
+            }
+        }
+        if (Double.isFinite(edadAnios) && edadAnios < EDAD_MINIMA_OPTOTIPOS) {
+            alertas.add("Menor de 3 años: la agudeza con optotipos no es confiable a esta edad; se sugiere fotocribado o valoración por oftalmología pediátrica.");
+        }
+        if (Double.isFinite(edadAnios) && edadAnios < EDAD_MAXIMA_SUGERIR_E && condiciones != null
+                && !condiciones.tipoOptotipo.toLowerCase(Locale.ROOT).startsWith("e ")) {
+            alertas.add("Se usaron letras en un niño menor de 6 años: un resultado bajo puede deberse a que no conoce las letras; repetir con la E direccional.");
+        }
+        if (lineaNoVerificable()) {
+            alertas.add("NO CONCLUYENTE: la pantalla, a esta distancia, no puede dibujar la línea de referencia "
+                    + TrigonometriaVisual.snellenDesdeLogMAR(lineaDeReferencia()) + "; repita a mayor distancia o en una pantalla de más resolución.");
+        } else {
+            for (ResultadoOjo ojo : new ResultadoOjo[]{ojoDerecho, ojoIzquierdo}) {
+                if (ojo != null && ojo.isLimitadoPorPantalla())
+                    alertas.add((ojo == ojoDerecho ? "OD" : "OI") + " leyó la fila más pequeña que la pantalla puede mostrar; su agudeza real puede ser mejor.");
+            }
+        }
+        if (Double.isFinite(edadAnios) && edadAnios < EDAD_MAXIMA_SUGERIR_E && ishiharaTotal > 0) {
+            alertas.add("Tamiz de color en menor de 6 años: las láminas piden reconocer números; un error puede deberse a "
+                    + "no conocerlos. Interpretar con cautela y confirmar con una prueba para preescolares.");
+        }
+        if (Double.isFinite(edadAnios) && edadAnios < EDAD_MAXIMA_VOZ_CONFIABLE
+                && metodoEntrada != null && metodoEntrada.toLowerCase(Locale.ROOT).contains("voz")) {
+            alertas.add("Respuestas capturadas por voz en un menor de 8 años: el reconocedor entiende peor la voz infantil "
+                    + "y un error suyo cuenta como letra no leída. Se prefiere el modo asistido a esta edad.");
+        }
+        if (condiciones != null) alertas.addAll(condiciones.avisos());
         return Collections.unmodifiableList(alertas);
+    }
+
+    /** Línea de referencia: la de la edad o, en adultos/edad desconocida, la de agudeza reducida. */
+    private double lineaDeReferencia() {
+        double linea = lineaAprobatoriaParaEdad(edadAnios);
+        return Double.isFinite(linea) ? linea : LOGMAR_REDUCIDA - 0.1;
+    }
+
+    /** No leyó la línea aprobatoria (criterio de fila: la mayoría de los optotipos de esa fila). */
+    private static boolean noPasaLinea(ResultadoOjo ojo, double linea) {
+        double fila = ojo.getLogMarFilaLeida();
+        return !Double.isFinite(fila) || fila > linea + 1e-9;
+    }
+
+    /**
+     * La persona leyó todo lo que la pantalla podía dibujar, pero la pantalla no
+     * llega a la línea de referencia: no se puede afirmar que "pasa".
+     */
+    public boolean lineaNoVerificable() {
+        if (condiciones == null || !Double.isFinite(condiciones.logMarLimitePantalla)) return false;
+        if (condiciones.logMarLimitePantalla <= lineaDeReferencia() + 1e-9) return false;
+        for (ResultadoOjo ojo : new ResultadoOjo[]{ojoDerecho, ojoIzquierdo}) {
+            if (ojo != null && ojo.isLimitadoPorPantalla()) return true;
+        }
+        return false;
     }
 
     public PrioridadSeguimiento getPrioridadSeguimiento() {
@@ -239,6 +364,7 @@ public final class ResultadoClinico {
         if (hayAsimetria() || esAgudezaReducida(ojoDerecho) || esAgudezaReducida(ojoIzquierdo)) {
             return PrioridadSeguimiento.PREFERENTE;
         }
+        if (lineaNoVerificable()) return PrioridadSeguimiento.NO_CONCLUYENTE;
         if (ishiharaRespuestasDeficiencia >= UMBRAL_RESPUESTAS_DEFICIENCIA_COLOR) return PrioridadSeguimiento.PROGRAMADA;
         return PrioridadSeguimiento.SIN_BANDERAS;
     }
@@ -248,9 +374,17 @@ public final class ResultadoClinico {
         return ojo != null && ojo.getLogMar() != null && ojo.getLogMar() >= LOGMAR_MARCADAMENTE_REDUCIDA - 1e-9;
     }
 
-    /** LogMAR ≥ 0.3 (20/40 o peor): referencia habitual en tamizaje escolar. */
+    /**
+     * Niños de 3 a 17 años: no leyó la línea aprobatoria para su edad.
+     * Adultos o edad desconocida: LogMAR ≥ 0.3 (20/40 o peor).
+     */
     private boolean esAgudezaReducida(ResultadoOjo ojo) {
-        return ojo != null && ojo.getLogMar() != null && ojo.getLogMar() >= LOGMAR_REDUCIDA - 1e-9;
+        if (ojo == null || ojo.getLogMar() == null) return false;
+        // Leyó todo lo que la pantalla podía dibujar: su agudeza es igual o mejor, no se puede afirmar que sea baja.
+        if (ojo.isLimitadoPorPantalla()) return false;
+        double linea = lineaAprobatoriaParaEdad(edadAnios);
+        if (Double.isFinite(linea)) return noPasaLinea(ojo, linea);
+        return ojo.getLogMar() >= LOGMAR_REDUCIDA - 1e-9;
     }
 
     /** Diferencia entre ojos en LogMAR (NaN si falta alguno). */
@@ -272,6 +406,7 @@ public final class ResultadoClinico {
     public String getRecomendacion() {
         return switch (getPrioridadSeguimiento()) {
             case PRIORITARIA -> "Se detectó una agudeza visual marcadamente reducida. Solicite valoración prioritaria con optometría u oftalmología; si la disminución fue súbita o hay dolor, ojo rojo, trauma o pérdida visual reciente, busque atención médica inmediata.";
+            case NO_CONCLUYENTE -> "El tamizaje no es concluyente: la persona leyó todo lo que la pantalla podía mostrar a esta distancia, pero la pantalla no alcanza la línea de referencia. Repita la prueba a mayor distancia o en una pantalla de mayor resolución.";
             case PREFERENTE -> "Se identificaron hallazgos de agudeza visual o diferencia entre ambos ojos que ameritan una valoración completa. Programe consulta con un profesional de salud visual en las próximas semanas.";
             case PROGRAMADA -> "El tamiz cromático mostró respuestas no concordantes. Programe una evaluación de visión de color y valoración optométrica; este resultado no identifica por sí solo el tipo ni la causa de una deficiencia.";
             case SIN_BANDERAS -> "No se identificaron banderas automáticas en este tamizaje. Mantenga controles visuales periódicos y consulte antes si aparecen molestias o cambios en la visión.";

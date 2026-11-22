@@ -37,6 +37,60 @@ public class CalibracionFocal {
     }
 
     /**
+     * Focal típica de una cámara web dividida entre el ancho del fotograma (campo de
+     * visión horizontal ≈ 65°). Solo se usa mientras la cámara no se ha calibrado.
+     */
+    public static final double FOCAL_NORMALIZADA_POR_DEFECTO = 0.79;
+
+    /** Distancia (mm) con la focal normalizada: d = DP · (f/ancho · ancho) / p. */
+    public static double distanciaMm(double dpMm, double focalNormalizada, double anchoFotogramaPx, double separacionOjosPx) {
+        if (separacionOjosPx <= 0 || focalNormalizada <= 0 || anchoFotogramaPx <= 0) return -1;
+        return dpMm * focalNormalizada * anchoFotogramaPx / separacionOjosPx;
+    }
+
+    /**
+     * Calibración con una distancia medida con cinta y la DP de ESA persona (medida o
+     * estimada por su edad). Así la focal describe a la cámara y no a la cara de
+     * quien calibró.
+     */
+    public static double focalNormalizada(double separacionOjosPx, double distanciaRealMm, double dpPersonaMm, double anchoFotogramaPx) {
+        if (separacionOjosPx <= 0 || distanciaRealMm <= 0 || dpPersonaMm <= 0 || anchoFotogramaPx <= 0) return -1;
+        return separacionOjosPx * distanciaRealMm / (dpPersonaMm * anchoFotogramaPx);
+    }
+
+    /** DP real (mm) cuando la cámara ya está calibrada y la distancia se midió con cinta. */
+    public static double dpMedidaMm(double separacionOjosPx, double distanciaRealMm, double focalNormalizada, double anchoFotogramaPx) {
+        if (separacionOjosPx <= 0 || distanciaRealMm <= 0 || focalNormalizada <= 0 || anchoFotogramaPx <= 0) return -1;
+        return separacionOjosPx * distanciaRealMm / (focalNormalizada * anchoFotogramaPx);
+    }
+
+    /**
+     * Rostro girado: la nariz se aleja del punto medio entre los ojos. Con la cabeza
+     * girada los ojos se ven más juntos y la distancia saldría mayor que la real,
+     * así que esa lectura se descarta.
+     */
+    public static boolean rostroGirado(double ojoAx, double ojoBx, double narizX, double separacionOjosPx) {
+        if (separacionOjosPx <= 0) return true;
+        double medio = (ojoAx + ojoBx) / 2.0;
+        return Math.abs(narizX - medio) / separacionOjosPx > UMBRAL_GIRO;
+    }
+
+    /** Fracción máxima de la distancia que se tolera (10 % ≈ 0.04 LogMAR, menos de media fila). */
+    public static final double TOLERANCIA_RELATIVA_MAXIMA = 0.10;
+
+    /**
+     * Tolerancia efectiva: la configurada, pero nunca más del 10 % de la distancia objetivo.
+     * Un margen fijo de ±15 cm es ±5 % a 3 m pero ±19 % a 0.8 m (casi una fila de error).
+     */
+    public static double toleranciaEfectivaCm(double toleranciaConfiguradaCm, double distanciaObjetivoCm) {
+        double relativa = distanciaObjetivoCm * TOLERANCIA_RELATIVA_MAXIMA;
+        return Math.max(3.0, Math.min(toleranciaConfiguradaCm, relativa));
+    }
+
+    /** Desplazamiento de la nariz (fracción de la separación de los ojos) a partir del cual se considera girado (~20°). */
+    public static final double UMBRAL_GIRO = 0.22;
+
+    /**
      * Fórmula 3: Expresión Pitagórica para Derivar la Magnitud del Vector Interpupilar.
      * @param x1 Coordenada X del ojo izquierdo.
      * @param y1 Coordenada Y del ojo izquierdo.

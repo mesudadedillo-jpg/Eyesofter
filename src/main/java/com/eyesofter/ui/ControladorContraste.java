@@ -52,11 +52,16 @@ public class ControladorContraste implements ControladorDeVista {
         return Math.min(ideal, maximo);
     }
     private boolean terminada;
+    private double distanciaContrasteM = 1.0;
 
     @Override
     public void setStage(Stage stage) {
         double escala = Screen.getPrimary().getOutputScaleY() > 0 ? Screen.getPrimary().getOutputScaleY() : 1.0;
-        double distanciaMm = AppConfig.DISTANCIA_OBJETIVO_METROS_DEFECTO * 1000.0;
+        // Pelli-Robson se valida a 1 m con letras de 2.8°. Antes se usaba la distancia de la
+        // prueba de agudeza (hasta 4 m) y, si las letras no cabían, se achicaban: letras más
+        // pequeñas son más difíciles y la sensibilidad salía menor. Ahora el tamaño angular se
+        // conserva: si a 1 m no caben, se indica una distancia más corta.
+        double distanciaMm = 1000.0;
         double alturaMm = 2 * distanciaMm * Math.tan(Math.toRadians(SensibilidadContraste.GRADOS_LETRA / 2.0));
         tamanioFuente = TrigonometriaVisual.calcularTamanioFuenteLogico(alturaMm, AppConfig.PPI_ESTANDAR_MONITOR,
                 FuentesOptotipo.factorDeCorreccion(AppConfig.FUENTE_OPTOTIPO_DEFECTO), escala);
@@ -64,6 +69,7 @@ public class ControladorContraste implements ControladorDeVista {
         double anchoDisponible = stage.getWidth() > 0 ? stage.getWidth() : Screen.getPrimary().getVisualBounds().getWidth();
         tamanioFuente = limitar(tamanioIdeal, anchoDisponible);
         boolean reducida = tamanioFuente < tamanioIdeal;
+        distanciaContrasteM = (reducida ? distanciaMm * tamanioFuente / tamanioIdeal : distanciaMm) / 1000.0;
 
         Label titulo = new Label("Sensibilidad al contraste");
         titulo.getStyleClass().add("etiqueta-titulo");
@@ -85,8 +91,8 @@ public class ControladorContraste implements ControladorDeVista {
         lblEstado.setWrapText(true);
         lblEstado.getStyleClass().add("estado-voz");
         Label ayuda = new Label(String.format(Locale.US,
-                "Distancia: %.1f m · luz ambiente uniforme, sin reflejos. Clic en una letra (o 1·2·3) = no leída · Enter registra.%s",
-                AppConfig.DISTANCIA_OBJETIVO_METROS_DEFECTO, reducida ? " (letras reducidas para caber en pantalla)" : ""));
+                "Siente a la persona a %.2f m de la pantalla%s · luz ambiente uniforme, sin reflejos. Clic en una letra (o 1·2·3) = no leída · Enter registra.",
+                distanciaContrasteM, reducida ? " (las letras de 2.8° no caben a 1 m en esta pantalla)" : ""));
         ayuda.getStyleClass().add("etiqueta-ayuda");
         ayuda.setWrapText(true);
         btnRegistrar = new Button("Registrar triplete  ⏎");
@@ -147,8 +153,9 @@ public class ControladorContraste implements ControladorDeVista {
             etiquetas.add(l);
             filaLetras.getChildren().add(l);
         }
-        lblTriplete.setText(String.format(Locale.US, "Triplete %d de %d · log CS %.2f · contraste real %.2f %%",
-                indice + 1, SensibilidadContraste.NUMERO_TRIPLETES, logCs, gris.contrasteReal() * 100));
+        lblTriplete.setText(String.format(Locale.US, "Triplete %d de %d · log CS dibujado %.2f · contraste real %.2f %%",
+                indice + 1, SensibilidadContraste.tripletesRepresentables(), SensibilidadContraste.logCsRealDeTriplete(indice),
+                gris.contrasteReal() * 100));
         lblEstado.setText("Pida a la persona que lea las tres letras. Marque las que no leyó.");
         actualizarMarcas();
         raiz.requestFocus();
@@ -161,14 +168,15 @@ public class ControladorContraste implements ControladorDeVista {
     }
 
     private void actualizarMarcas() {
-        for (int i = 0; i < etiquetas.size(); i++) {
-            Label l = etiquetas.get(i);
-            l.getStyleClass().removeAll("letra-no-leida");
-            if (!leidas[i]) l.getStyleClass().add("letra-no-leida");
-        }
+        // Las letras no cambian al marcarlas: un subrayado rojo bajo una letra de bajo contraste
+        // era una pista visible para la persona evaluada. El estado se ve solo en el botón.
         int n = 0;
-        for (boolean b : leidas) if (b) n++;
-        btnRegistrar.setText("Registrar triplete (" + n + "/3)  ⏎");
+        StringBuilder noLeidas = new StringBuilder();
+        for (int i = 0; i < leidas.length; i++) {
+            if (leidas[i]) n++;
+            else noLeidas.append(noLeidas.length() == 0 ? "" : ", ").append(i + 1);
+        }
+        btnRegistrar.setText("Registrar triplete (" + n + "/3)" + (noLeidas.length() > 0 ? " · no leídas: " + noLeidas : "") + "  ⏎");
     }
 
     private void registrar() {

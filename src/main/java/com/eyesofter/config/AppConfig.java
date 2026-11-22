@@ -50,6 +50,27 @@ public class AppConfig {
      */
     public static double DISTANCIA_FOCAL_CAMARA_PX = 0.0;
 
+    /**
+     * Detector de rostro con puntos de los ojos (YuNet, licencia MIT, ~230 KB).
+     * Si falta, se usa el método de respaldo (ancho del rostro con Haar).
+     */
+    public static String RUTA_MODELO_YUNET = "modelo_opencv/face_detection_yunet_2023mar.onnx";
+
+    /**
+     * Focal de la cámara dividida entre el ancho del fotograma (adimensional), así no
+     * depende de la resolución con que se abra la cámara. 0 = sin calibrar.
+     * Reemplaza a DISTANCIA_FOCAL_CAMARA_PX, que mezclaba la cámara con el tamaño
+     * de la cara de quien calibró.
+     */
+    public static double FOCAL_CAMARA_NORMALIZADA = 0.0;
+    /** Método con que se calibró la focal ("OJOS" o "ROSTRO"): solo vale para el mismo método. */
+    public static String METODO_FOCAL_CAMARA = "";
+
+    /** Cómo se obtuvo el PPI: TARJETA, DIAGONAL o MANUAL. */
+    public static String METODO_PPI = "DIAGONAL";
+    /** Identificador de la pantalla donde se midió el PPI (resolución, posición y escalado). */
+    public static String PANTALLA_CALIBRADA = "";
+
 
 
 // Rutas del sintetizador de voz (Piper), usadas por SintetizadorVoz
@@ -143,6 +164,11 @@ public class AppConfig {
             RUTA_MODELO_OJOS_OPENCV = p.getProperty("rutaModeloOjosOpenCV", RUTA_MODELO_OJOS_OPENCV);
 
             DISTANCIA_FOCAL_CAMARA_PX = parseDouble(p.getProperty("distanciaFocalCamaraPx"), DISTANCIA_FOCAL_CAMARA_PX);
+            RUTA_MODELO_YUNET = p.getProperty("rutaModeloYunet", RUTA_MODELO_YUNET);
+            FOCAL_CAMARA_NORMALIZADA = parseDouble(p.getProperty("focalCamaraNormalizada"), FOCAL_CAMARA_NORMALIZADA);
+            METODO_FOCAL_CAMARA = p.getProperty("metodoFocalCamara", METODO_FOCAL_CAMARA);
+            METODO_PPI = p.getProperty("metodoPpi", METODO_PPI);
+            PANTALLA_CALIBRADA = p.getProperty("pantallaCalibrada", PANTALLA_CALIBRADA);
 
             RUTA_PIPER_EXE = p.getProperty("rutaPiperExe", RUTA_PIPER_EXE);
 
@@ -196,6 +222,11 @@ public class AppConfig {
         p.setProperty("rutaModeloOjosOpenCV", RUTA_MODELO_OJOS_OPENCV);
 
         p.setProperty("distanciaFocalCamaraPx", String.valueOf(DISTANCIA_FOCAL_CAMARA_PX));
+        p.setProperty("rutaModeloYunet", RUTA_MODELO_YUNET);
+        p.setProperty("focalCamaraNormalizada", String.valueOf(FOCAL_CAMARA_NORMALIZADA));
+        p.setProperty("metodoFocalCamara", METODO_FOCAL_CAMARA);
+        p.setProperty("metodoPpi", METODO_PPI);
+        p.setProperty("pantallaCalibrada", PANTALLA_CALIBRADA);
 
         p.setProperty("rutaPiperExe", RUTA_PIPER_EXE);
 

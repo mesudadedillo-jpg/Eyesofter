@@ -47,7 +47,7 @@ public class ControladorPanelAdministrativo implements ControladorDeVista {
 
     public void iniciarTamizajePaciente(GestorBaseDatos.PacienteInfo paciente, SesionEvaluacion.ModoEvaluacion modo) {
         if (paciente == null) return;
-        SesionEvaluacion.iniciar(paciente.curp, paciente.nombre, paciente.gradoGrupo);
+        SesionEvaluacion.iniciar(paciente.curp, paciente.nombre, paciente.gradoGrupo, paciente.fechaNacimiento);
 
         // Aplicamos el modo elegido (Asistida o Autónoma)
         SesionEvaluacion.configurarModo(modo);

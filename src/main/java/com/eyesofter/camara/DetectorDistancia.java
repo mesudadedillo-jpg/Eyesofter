@@ -8,6 +8,9 @@ import org.opencv.core.Rect;
 import org.opencv.core.Core;
 import org.opencv.core.Point;
 import org.opencv.objdetect.CascadeClassifier;
+import org.opencv.objdetect.FaceDetectorYN;
+import org.opencv.core.Size;
+import org.opencv.videoio.Videoio;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.imgproc.Imgproc;
 
@@ -19,6 +22,21 @@ import java.util.List;
  * Módulo de Visión Artificial.
  * Mide la distancia en tiempo real entre el paciente y el monitor
  * aplicando el modelo matemático Pinhole Camera y Semejanza de Triángulos.
+ *
+ * <h3>Cómo se mide</h3>
+ * d = DP · f / p, donde p es la separación de los ojos en la imagen, f la focal de
+ * la cámara y DP la distancia interpupilar de ESA persona.
+ * <ul>
+ *   <li>Los ojos se ubican con YuNet (OpenCV 4.9, modelo abierto de 230 KB que corre
+ *       en cualquier CPU). Si falta el modelo se usa el ancho del rostro (Haar).</li>
+ *   <li>La DP sale de la medición con cinta de la sesión, de la capturada por el
+ *       operador o de la tabla por edad ({@link com.eyesofter.formulas.Antropometria}).
+ *       Antes se suponía 55 mm para todos: un adulto parecía estar más cerca y un
+ *       niño pequeño más lejos de lo real.</li>
+ *   <li>La focal se guarda dividida entre el ancho del fotograma y se calibra con la
+ *       DP de quien está frente a la cámara, así sirve para cualquier paciente.</li>
+ *   <li>Las lecturas con la cabeza girada se descartan (los ojos se ven más juntos).</li>
+ * </ul>
  */
 public class DetectorDistancia {
 
@@ -32,6 +50,9 @@ public class DetectorDistancia {
         CAMARA_SIN_IMAGEN
     }
 
+    /** Método con que se ubica a la persona. Una calibración solo vale para su mismo método. */
+    public enum Metodo { OJOS, ROSTRO }
+
     private static Throwable errorFatalOpenCV = null;
 
     static {
@@ -44,11 +65,13 @@ public class DetectorDistancia {
 
     private VideoCapture camara;
     private CascadeClassifier detectorRostros;
-    private CascadeClassifier detectorOjos;
+    private FaceDetectorYN detectorYunet;
+    private Metodo metodo = Metodo.ROSTRO;
 
-    private double distanciaFocalCalibrada = 600.0;
+    private double focalNormalizada = CalibracionFocal.FOCAL_NORMALIZADA_POR_DEFECTO;
     private boolean focalCalibrada;
     private double distanciaObjetivoCm = 100.0;
+    private double dpPacienteMm = com.eyesofter.formulas.Antropometria.DP_ADULTO_MM;
 
     private final Mat ultimoFrame = new Mat();
     private double ultimaDistanciaCm = -1;
@@ -57,14 +80,15 @@ public class DetectorDistancia {
     private CondicionPrueba ultimaCondicion = CondicionPrueba.CAMARA_SIN_IMAGEN;
     private Mat grisAnterior;
     private static final double UMBRAL_RUIDO_VISUAL = 42.0;
-    private double sumaDistanciaPupilarMm;
-    private int muestrasDistanciaPupilar;
 
     private long ultimoInstanteMuestraMs = -1;
     private long duracionMuestreadaMs;
     private long duracionEnRangoMs;
     private boolean ultimoEstadoEnRango;
     private int muestrasFiabilidad;
+    private double sumaDistanciaCm;
+    private double sumaCuadradosDistanciaCm;
+    private int muestrasDistancia;
 
     private static void mostrarErrorProfundo(Throwable ex, String contexto) {
         javafx.application.Platform.runLater(() -> {
@@ -98,14 +122,14 @@ public class DetectorDistancia {
     }
 
     public DetectorDistancia(String rutaModeloHaar) {
-        this(rutaModeloHaar, AppConfig.RUTA_MODELO_OJOS_OPENCV, AppConfig.INDICE_CAMARA_PREFERIDA);
+        this(rutaModeloHaar, AppConfig.RUTA_MODELO_YUNET, AppConfig.INDICE_CAMARA_PREFERIDA);
     }
 
-    public DetectorDistancia(String rutaModeloHaar, String rutaModeloOjos) {
-        this(rutaModeloHaar, rutaModeloOjos, AppConfig.INDICE_CAMARA_PREFERIDA);
+    public DetectorDistancia(String rutaModeloHaar, String rutaModeloYunet) {
+        this(rutaModeloHaar, rutaModeloYunet, AppConfig.INDICE_CAMARA_PREFERIDA);
     }
 
-    public DetectorDistancia(String rutaModeloHaar, String rutaModeloOjos, int indiceCamara) {
+    public DetectorDistancia(String rutaModeloHaar, String rutaModeloYunet, int indiceCamara) {
         if (errorFatalOpenCV != null) {
             mostrarErrorProfundo(errorFatalOpenCV, "La librería OpenCV no se pudo cargar en memoria.");
             throw new RuntimeException("Fallo estático de OpenCV");
@@ -122,23 +146,41 @@ public class DetectorDistancia {
                 throw new RuntimeException("CRÍTICO: El modelo Haar Cascade se cargó vacío o está corrupto.");
             }
 
-            File archivoOjos = new File(rutaModeloOjos == null ? "" : rutaModeloOjos);
-            if (archivoOjos.exists()) {
-                CascadeClassifier candidato = new CascadeClassifier(archivoOjos.getAbsolutePath());
-                if (!candidato.empty()) detectorOjos = candidato;
-            }
-
-            if (AppConfig.DISTANCIA_FOCAL_CAMARA_PX > 0) {
-                setDistanciaFocalCalibrada(AppConfig.DISTANCIA_FOCAL_CAMARA_PX);
-            }
+            this.detectorYunet = cargarYunet(rutaModeloYunet);
+            this.metodo = detectorYunet != null ? Metodo.OJOS : Metodo.ROSTRO;
+            cargarCalibracionGuardada();
 
             this.camara = new VideoCapture(Math.max(0, indiceCamara));
             if (!camara.isOpened()) {
                 throw new RuntimeException("CRÍTICO: No se pudo encender la cámara web índice " + indiceCamara);
             }
+            // Más resolución = ojos mejor ubicados a 2-4 m. Si la cámara no la admite, se queda con la suya.
+            camara.set(Videoio.CAP_PROP_FRAME_WIDTH, 1280);
+            camara.set(Videoio.CAP_PROP_FRAME_HEIGHT, 720);
         } catch (Throwable t) {
             mostrarErrorProfundo(t, "Error al inicializar el constructor de DetectorDistancia");
             throw t;
+        }
+    }
+
+    private static FaceDetectorYN cargarYunet(String ruta) {
+        if (ruta == null || ruta.isBlank() || !new File(ruta).exists()) {
+            System.err.println("[CÁMARA]: no se encontró el modelo YuNet; se usa el ancho del rostro (menos exacto).");
+            return null;
+        }
+        try {
+            return FaceDetectorYN.create(new File(ruta).getAbsolutePath(), "", new Size(320, 320), 0.75f, 0.3f, 50);
+        } catch (Throwable t) {
+            System.err.println("[CÁMARA]: no se pudo cargar YuNet (" + t.getMessage() + "); se usa el ancho del rostro.");
+            return null;
+        }
+    }
+
+    /** La calibración guardada solo se usa si se hizo con el mismo método (ojos o rostro). */
+    private void cargarCalibracionGuardada() {
+        if (AppConfig.FOCAL_CAMARA_NORMALIZADA > 0 && metodo.name().equals(AppConfig.METODO_FOCAL_CAMARA)) {
+            focalNormalizada = AppConfig.FOCAL_CAMARA_NORMALIZADA;
+            focalCalibrada = true;
         }
     }
 
@@ -171,12 +213,18 @@ public class DetectorDistancia {
         return distanciaObjetivoCm;
     }
 
-    public void setDistanciaFocalCalibrada(double focal) {
-        if (focal > 0) {
-            this.distanciaFocalCalibrada = focal;
-            this.focalCalibrada = true;
+    /** DP de la persona evaluada (medida, capturada o estimada por edad). */
+    public synchronized void setDpPacienteMm(double mm) {
+        if (com.eyesofter.formulas.Antropometria.esDpPlausible(mm)) {
+            dpPacienteMm = mm;
+            historialDistancias.clear();
+            distanciaSuavizada = -1;
         }
     }
+
+    public synchronized double getDpPacienteMm() { return dpPacienteMm; }
+
+    public Metodo getMetodo() { return metodo; }
 
     public synchronized void iniciarRegistroFiabilidad() {
         ultimoInstanteMuestraMs = -1;
@@ -184,31 +232,32 @@ public class DetectorDistancia {
         duracionEnRangoMs = 0;
         ultimoEstadoEnRango = false;
         muestrasFiabilidad = 0;
-        sumaDistanciaPupilarMm = 0;
-        muestrasDistanciaPupilar = 0;
+        sumaDistanciaCm = 0;
+        sumaCuadradosDistanciaCm = 0;
+        muestrasDistancia = 0;
     }
 
     public boolean validarPosicionPaciente() {
         return evaluarCondicionPrueba() == CondicionPrueba.CORRECTA;
     }
 
+    /** Un rostro detectado en coordenadas del fotograma original. */
+    private record Rostro(Rect caja, double separacionOjosPx, boolean girado, Point ojoA, Point ojoB) { }
+
     /**
      * Evalúa la posición del paciente con el rostro principal.
      *
-     * Mejoras de exactitud:
-     *  - El fotograma se reduce a ~480 px de ancho y se ecualiza el histograma:
-     *    la detección es 3-4 veces más rápida y tolera mejor la iluminación.
      *  - La distancia se filtra con la mediana de las últimas lecturas y luego
      *    un suavizado exponencial: desaparecen los saltos de ±10 cm entre cuadros.
      *  - Histéresis: para salir de rango hay que superar la tolerancia + 3 cm,
      *    así la prueba no se pausa por oscilaciones en el borde.
      *  - Se detecta una segunda persona si su rostro mide al menos el 55 % del principal.
+     *  - Con la cabeza girada se conserva la última distancia válida.
      */
     public synchronized CondicionPrueba evaluarCondicionPrueba() {
         Mat frame = new Mat();
         Mat gris = new Mat();
         Mat reducido = new Mat();
-        MatOfRect rostros = new MatOfRect();
         try {
             if (camara == null || !camara.read(frame) || frame.empty()) {
                 registrarMuestraFiabilidad(false);
@@ -216,22 +265,16 @@ public class DetectorDistancia {
                 return ultimaCondicion;
             }
             frame.copyTo(ultimoFrame);
+            anchoFotogramaPx = frame.cols();
             Imgproc.cvtColor(frame, gris, Imgproc.COLOR_BGR2GRAY);
-
-            double escala = gris.cols() > ANCHO_PROCESAMIENTO ? ANCHO_PROCESAMIENTO / (double) gris.cols() : 1.0;
-            if (escala < 1.0) Imgproc.resize(gris, reducido, new org.opencv.core.Size(), escala, escala, Imgproc.INTER_AREA);
-            else gris.copyTo(reducido);
-            Imgproc.equalizeHist(reducido, reducido);
-
-            int minimo = Math.max(30, (int) Math.round(60 * escala));
-            detectorRostros.detectMultiScale(reducido, rostros, 1.1, 5, 0,
-                    new org.opencv.core.Size(minimo, minimo), new org.opencv.core.Size());
-
-            Rect[] arrayRostros = rostros.toArray();
-            ultimoNumeroRostros = arrayRostros.length;
+            double escalaRuido = gris.cols() > ANCHO_RUIDO ? ANCHO_RUIDO / (double) gris.cols() : 1.0;
+            Imgproc.resize(gris, reducido, new Size(), escalaRuido, escalaRuido, Imgproc.INTER_AREA);
             boolean ruidoVisual = hayRuidoVisual(reducido);
 
-            if (arrayRostros.length == 0) {
+            List<Rostro> rostros = metodo == Metodo.OJOS ? detectarConYunet(frame) : detectarConHaar(gris);
+            ultimoNumeroRostros = rostros.size();
+
+            if (rostros.isEmpty()) {
                 ultimoRostroDetectado = false;
                 ultimoRostro = null;
                 cuadrosSinRostro++;
@@ -245,30 +288,30 @@ public class DetectorDistancia {
             cuadrosSinRostro = 0;
             ultimoRostroDetectado = true;
 
-            Rect rostroReducido = seleccionarRostroPrincipal(arrayRostros);
-            if (hayOtraPersona(arrayRostros, rostroReducido)) {
+            Rostro principal = seleccionarRostroPrincipal(rostros);
+            ultimoRostro = principal;
+            if (hayOtraPersona(rostros, principal)) {
                 registrarMuestraFiabilidad(false);
                 ultimaCondicion = CondicionPrueba.MULTIPLES_PERSONAS;
                 return ultimaCondicion;
             }
 
-            // Coordenadas de vuelta a la resolución original.
-            ultimoRostro = new Rect((int) Math.round(rostroReducido.x / escala), (int) Math.round(rostroReducido.y / escala),
-                    (int) Math.round(rostroReducido.width / escala), (int) Math.round(rostroReducido.height / escala));
-            Rect rostro = new Rect((int) Math.round(rostroReducido.x / escala), (int) Math.round(rostroReducido.y / escala),
-                    (int) Math.round(rostroReducido.width / escala), (int) Math.round(rostroReducido.height / escala));
-            ultimoAnchoRostroPx = rostro.width;
-            agregarAnchoParaCalibracion(rostro.width);
-
-            double distanciaInstantanea = distanciaDesdeAnchoRostro(rostro.width);
-            double distanciaActualCm = filtrarDistancia(distanciaInstantanea);
+            double distanciaActualCm;
+            if (principal.girado() && distanciaSuavizada > 0) {
+                distanciaActualCm = distanciaSuavizada;
+            } else {
+                agregarSeparacionParaCalibracion(principal.separacionOjosPx());
+                double instantaneaCm = CalibracionFocal.distanciaMm(dpPacienteMm, focalNormalizada, anchoFotogramaPx,
+                        principal.separacionOjosPx()) / 10.0;
+                distanciaActualCm = filtrarDistancia(instantaneaCm);
+                if (distanciaActualCm > 0) registrarDistancia(distanciaActualCm);
+            }
             this.ultimaDistanciaCm = distanciaActualCm;
 
-            double tolerancia = AppConfig.TOLERANCIA_DISTANCIA_CM;
+            double tolerancia = CalibracionFocal.toleranciaEfectivaCm(AppConfig.TOLERANCIA_DISTANCIA_CM, distanciaObjetivoCm);
             double diferencia = Math.abs(distanciaActualCm - distanciaObjetivoCm);
             boolean enRango = ultimoEstadoEnRangoDistancia ? diferencia <= tolerancia + HISTERESIS_CM : diferencia <= tolerancia;
             ultimoEstadoEnRangoDistancia = enRango;
-            if (enRango) registrarMuestraPupilar(gris, rostro, distanciaActualCm);
 
             registrarMuestraFiabilidad(enRango && !ruidoVisual);
 
@@ -282,12 +325,69 @@ public class DetectorDistancia {
             frame.release();
             gris.release();
             reducido.release();
-            rostros.release();
         }
     }
 
-    /** Ancho de procesamiento: suficiente para rostros a 4 m con cámaras 720p/1080p. */
+    /**
+     * YuNet devuelve por rostro: caja (x, y, ancho, alto), ojo derecho, ojo izquierdo,
+     * nariz, comisuras de la boca y la confianza. Se procesa a ≤ 960 px de ancho: a 4 m
+     * con una cámara 720p la cara mide ~40 px, dentro del rango del modelo (10-300 px).
+     */
+    private List<Rostro> detectarConYunet(Mat frame) {
+        List<Rostro> lista = new ArrayList<>();
+        Mat entrada = new Mat();
+        Mat caras = new Mat();
+        try {
+            double escala = frame.cols() > ANCHO_YUNET ? ANCHO_YUNET / (double) frame.cols() : 1.0;
+            if (escala < 1.0) Imgproc.resize(frame, entrada, new Size(), escala, escala, Imgproc.INTER_AREA);
+            else frame.copyTo(entrada);
+            detectorYunet.setInputSize(new Size(entrada.cols(), entrada.rows()));
+            detectorYunet.detect(entrada, caras);
+            for (int i = 0; i < caras.rows(); i++) {
+                double[] v = new double[15];
+                for (int j = 0; j < 15; j++) v[j] = caras.get(i, j)[0] / (j < 14 ? escala : 1.0);
+                Rect caja = new Rect((int) Math.round(v[0]), (int) Math.round(v[1]), (int) Math.round(v[2]), (int) Math.round(v[3]));
+                Point ojoA = new Point(v[4], v[5]);
+                Point ojoB = new Point(v[6], v[7]);
+                double separacion = CalibracionFocal.calcularMagnitudPupilar(ojoA.x, ojoA.y, ojoB.x, ojoB.y);
+                boolean girado = CalibracionFocal.rostroGirado(ojoA.x, ojoB.x, v[8], separacion);
+                lista.add(new Rostro(caja, separacion, girado, ojoA, ojoB));
+            }
+        } finally {
+            entrada.release();
+            caras.release();
+        }
+        return lista;
+    }
+
+    /** Respaldo sin YuNet: la separación de los ojos se aproxima con el 45 % del ancho del rostro. */
+    private List<Rostro> detectarConHaar(Mat gris) {
+        List<Rostro> lista = new ArrayList<>();
+        Mat reducido = new Mat();
+        MatOfRect rostros = new MatOfRect();
+        try {
+            double escala = gris.cols() > ANCHO_PROCESAMIENTO ? ANCHO_PROCESAMIENTO / (double) gris.cols() : 1.0;
+            if (escala < 1.0) Imgproc.resize(gris, reducido, new Size(), escala, escala, Imgproc.INTER_AREA);
+            else gris.copyTo(reducido);
+            Imgproc.equalizeHist(reducido, reducido);
+            int minimo = Math.max(30, (int) Math.round(60 * escala));
+            detectorRostros.detectMultiScale(reducido, rostros, 1.1, 5, 0, new Size(minimo, minimo), new Size());
+            for (Rect r : rostros.toArray()) {
+                Rect caja = new Rect((int) Math.round(r.x / escala), (int) Math.round(r.y / escala),
+                        (int) Math.round(r.width / escala), (int) Math.round(r.height / escala));
+                lista.add(new Rostro(caja, caja.width * FRACCION_IPD_EN_ROSTRO, false, null, null));
+            }
+        } finally {
+            reducido.release();
+            rostros.release();
+        }
+        return lista;
+    }
+
+    /** Ancho de procesamiento Haar: suficiente para rostros a 4 m con cámaras 720p/1080p. */
     private static final double ANCHO_PROCESAMIENTO = 480.0;
+    private static final double ANCHO_YUNET = 960.0;
+    private static final double ANCHO_RUIDO = 480.0;
     private static final double HISTERESIS_CM = 3.0;
     private static final int VENTANA_MEDIANA = 5;
     private static final double ALFA_SUAVIZADO = 0.35;
@@ -295,12 +395,12 @@ public class DetectorDistancia {
     private static final double FRACCION_IPD_EN_ROSTRO = 0.45;
 
     private final java.util.ArrayDeque<Double> historialDistancias = new java.util.ArrayDeque<>();
-    private final java.util.ArrayDeque<Integer> anchosRecientes = new java.util.ArrayDeque<>();
+    private final java.util.ArrayDeque<Double> separacionesRecientes = new java.util.ArrayDeque<>();
     private double distanciaSuavizada = -1;
     private int cuadrosSinRostro;
     private boolean ultimoEstadoEnRangoDistancia;
-    private int ultimoAnchoRostroPx;
-    private Rect ultimoRostro;
+    private Rostro ultimoRostro;
+    private int anchoFotogramaPx = 640;
 
     /**
      * Vista previa del último fotograma (JPEG, ~360 px de ancho, en espejo) con el
@@ -315,10 +415,15 @@ public class DetectorDistancia {
             if (ultimoRostro != null) {
                 org.opencv.core.Scalar color = ultimaCondicion == CondicionPrueba.CORRECTA
                         ? new org.opencv.core.Scalar(107, 174, 47) : new org.opencv.core.Scalar(60, 162, 230);
-                Imgproc.rectangle(copia, ultimoRostro.tl(), ultimoRostro.br(), color, Math.max(2, copia.cols() / 220));
+                int grosor = Math.max(2, copia.cols() / 220);
+                Imgproc.rectangle(copia, ultimoRostro.caja().tl(), ultimoRostro.caja().br(), color, grosor);
+                if (ultimoRostro.ojoA() != null) {
+                    Imgproc.circle(copia, ultimoRostro.ojoA(), grosor * 2, color, -1);
+                    Imgproc.circle(copia, ultimoRostro.ojoB(), grosor * 2, color, -1);
+                }
             }
             double escala = 360.0 / copia.cols();
-            Imgproc.resize(copia, reducida, new org.opencv.core.Size(), escala, escala, Imgproc.INTER_AREA);
+            Imgproc.resize(copia, reducida, new Size(), escala, escala, Imgproc.INTER_AREA);
             Core.flip(reducida, reducida, 1);
             org.opencv.imgcodecs.Imgcodecs.imencode(".jpg", reducida, salida);
             return salida.toArray();
@@ -327,12 +432,6 @@ public class DetectorDistancia {
             reducida.release();
             salida.release();
         }
-    }
-
-    /** Modelo pinhole: d = IPD · f / (0.45 · ancho_rostro). */
-    private double distanciaDesdeAnchoRostro(double anchoPx) {
-        return CalibracionFocal.calcularDistanciaZ(CalibracionFocal.IPD_PROMEDIO_INFANTIL_MM, distanciaFocalCalibrada,
-                anchoPx * FRACCION_IPD_EN_ROSTRO);
     }
 
     private double filtrarDistancia(double instantanea) {
@@ -345,45 +444,64 @@ public class DetectorDistancia {
         return distanciaSuavizada;
     }
 
-    private boolean hayOtraPersona(Rect[] rostros, Rect principal) {
-        double areaPrincipal = principal.area();
-        for (Rect r : rostros) {
-            if (r == principal) continue;
-            boolean solapa = (r.x < principal.x + principal.width && principal.x < r.x + r.width
-                    && r.y < principal.y + principal.height && principal.y < r.y + r.height);
+    private boolean hayOtraPersona(List<Rostro> rostros, Rostro principal) {
+        Rect p = principal.caja();
+        double areaPrincipal = p.area();
+        for (Rostro otro : rostros) {
+            if (otro == principal) continue;
+            Rect r = otro.caja();
+            boolean solapa = (r.x < p.x + p.width && p.x < r.x + r.width
+                    && r.y < p.y + p.height && p.y < r.y + r.height);
             if (!solapa && r.area() >= areaPrincipal * 0.55 * 0.55) return true;
         }
         return false;
     }
 
-    private void agregarAnchoParaCalibracion(int ancho) {
-        anchosRecientes.addLast(ancho);
-        while (anchosRecientes.size() > 15) anchosRecientes.removeFirst();
+    private void agregarSeparacionParaCalibracion(double separacionPx) {
+        separacionesRecientes.addLast(separacionPx);
+        while (separacionesRecientes.size() > 15) separacionesRecientes.removeFirst();
+    }
+
+    private double medianaSeparacion() {
+        double[] v = separacionesRecientes.stream().mapToDouble(Double::doubleValue).sorted().toArray();
+        return v.length == 0 ? -1 : v[v.length / 2];
     }
 
     /**
      * Calibra la cámara con la persona colocada a una distancia medida con cinta.
-     * Usa la mediana de los últimos anchos de rostro para obtener la focal, de modo
-     * que la distancia estimada coincida con la real para esta cámara.
+     * Usa la DP de esa persona (medida o estimada por su edad), de modo que la
+     * focal describa a la cámara y sirva después para pacientes de cualquier edad.
      *
-     * @return la focal calculada en píxeles, o -1 si no hay suficientes lecturas.
+     * @return la focal normalizada, o -1 si no hay suficientes lecturas.
      */
-    public synchronized double calibrarConDistanciaReal(double distanciaRealCm) {
-        if (anchosRecientes.size() < 5 || distanciaRealCm <= 0) return -1;
-        int[] anchos = anchosRecientes.stream().mapToInt(Integer::intValue).sorted().toArray();
-        double anchoMediana = anchos[anchos.length / 2];
-        double focal = CalibracionFocal.calcularDistanciaFocal(anchoMediana * FRACCION_IPD_EN_ROSTRO, distanciaRealCm,
-                CalibracionFocal.IPD_PROMEDIO_INFANTIL_MM);
-        setDistanciaFocalCalibrada(focal);
+    public synchronized double calibrarConDistanciaReal(double distanciaRealCm, double dpPersonaMm) {
+        if (separacionesRecientes.size() < 5 || distanciaRealCm <= 0) return -1;
+        double focal = CalibracionFocal.focalNormalizada(medianaSeparacion(), distanciaRealCm * 10.0, dpPersonaMm, anchoFotogramaPx);
+        if (focal <= 0) return -1;
+        focalNormalizada = focal;
+        focalCalibrada = true;
         historialDistancias.clear();
         distanciaSuavizada = -1;
         return focal;
     }
 
+    /**
+     * Con la cámara ya calibrada y la persona a una distancia medida con cinta, calcula
+     * su DP real. A partir de ahí la distancia de esta sesión no depende de la tabla por edad.
+     *
+     * @return DP en mm, o -1 si no es posible.
+     */
+    public synchronized double medirDpConDistanciaReal(double distanciaRealCm) {
+        if (!focalCalibrada || separacionesRecientes.size() < 5 || distanciaRealCm <= 0) return -1;
+        return CalibracionFocal.dpMedidaMm(medianaSeparacion(), distanciaRealCm * 10.0, focalNormalizada, anchoFotogramaPx);
+    }
+
     /** Lecturas disponibles para calibrar (se necesitan al menos 5). */
-    public synchronized int getLecturasParaCalibrar() { return anchosRecientes.size(); }
+    public synchronized int getLecturasParaCalibrar() { return separacionesRecientes.size(); }
 
     public boolean isFocalCalibrada() { return focalCalibrada; }
+
+    public double getFocalNormalizada() { return focalNormalizada; }
 
     // ------------------------------------------------------------------
     // Evaluación en segundo plano: la detección (30-80 ms) nunca bloquea la interfaz.
@@ -430,66 +548,16 @@ public class DetectorDistancia {
         return ruido;
     }
 
-    private Rect seleccionarRostroPrincipal(Rect[] rostros) {
-        Rect principal = rostros[0];
-        for (Rect rostro : rostros) {
-            if (rostro.width * rostro.height > principal.width * principal.height) {
-                principal = rostro;
-            }
-        }
+    private Rostro seleccionarRostroPrincipal(List<Rostro> rostros) {
+        Rostro principal = rostros.get(0);
+        for (Rostro r : rostros) if (r.caja().area() > principal.caja().area()) principal = r;
         return principal;
     }
 
-    private void registrarMuestraPupilar(Mat gris, Rect rostro, double distanciaCm) {
-        if (detectorOjos == null || !focalCalibrada) return;
-        int x = Math.max(0, rostro.x);
-        int y = Math.max(0, rostro.y + (int) (rostro.height * 0.10));
-        int ancho = Math.min(gris.cols() - x, rostro.width);
-        int alto = Math.min(gris.rows() - y, (int) (rostro.height * 0.52));
-        if (ancho <= 0 || alto <= 0) return;
-
-        Mat regionOjos = new Mat(gris, new Rect(x, y, ancho, alto));
-        MatOfRect ojosDetectados = new MatOfRect();
-        try {
-            detectorOjos.detectMultiScale(regionOjos, ojosDetectados, 1.1, 3, 0,
-                    new org.opencv.core.Size(20, 20), new org.opencv.core.Size());
-            Rect[] ojos = ojosDetectados.toArray();
-            if (ojos.length < 2) return;
-            Rect[] par = seleccionarParOjos(ojos);
-            if (par == null) return;
-
-            Point izquierdo = new Point(x + par[0].x + par[0].width / 2.0, y + par[0].y + par[0].height / 2.0);
-            Point derecho = new Point(x + par[1].x + par[1].width / 2.0, y + par[1].y + par[1].height / 2.0);
-            double separacionPx = CalibracionFocal.calcularMagnitudPupilar(izquierdo.x, izquierdo.y, derecho.x, derecho.y);
-            double dpMm = separacionPx * (distanciaCm * 10.0) / distanciaFocalCalibrada;
-
-            if (dpMm >= 45.0 && dpMm <= 80.0) {
-                sumaDistanciaPupilarMm += dpMm;
-                muestrasDistanciaPupilar++;
-            }
-        } finally {
-            regionOjos.release();
-            ojosDetectados.release();
-        }
-    }
-
-    private Rect[] seleccionarParOjos(Rect[] ojos) {
-        Rect izquierdo = null;
-        Rect derecho = null;
-        double mayorSeparacion = -1;
-        for (int i = 0; i < ojos.length; i++) {
-            for (int j = i + 1; j < ojos.length; j++) {
-                double c1 = ojos[i].x + ojos[i].width / 2.0;
-                double c2 = ojos[j].x + ojos[j].width / 2.0;
-                double separacion = Math.abs(c2 - c1);
-                if (separacion > mayorSeparacion) {
-                    mayorSeparacion = separacion;
-                    if (c1 < c2) { izquierdo = ojos[i]; derecho = ojos[j]; }
-                    else { izquierdo = ojos[j]; derecho = ojos[i]; }
-                }
-            }
-        }
-        return izquierdo == null ? null : new Rect[]{izquierdo, derecho};
+    private void registrarDistancia(double cm) {
+        sumaDistanciaCm += cm;
+        sumaCuadradosDistanciaCm += cm * cm;
+        muestrasDistancia++;
     }
 
     private synchronized void registrarMuestraFiabilidad(boolean enRango) {
@@ -512,19 +580,21 @@ public class DetectorDistancia {
         return 100.0 * duracionEnRangoMs / duracionMuestreadaMs;
     }
 
-    public synchronized double getDistanciaPupilarPromedioMm() {
-        return muestrasDistanciaPupilar == 0 ? Double.NaN : sumaDistanciaPupilarMm / muestrasDistanciaPupilar;
+    /** Distancia real promedio durante la prueba (cm), NaN sin muestras. */
+    public synchronized double getDistanciaPromedioCm() {
+        return muestrasDistancia == 0 ? Double.NaN : sumaDistanciaCm / muestrasDistancia;
     }
 
-    public synchronized boolean isDistanciaPupilarCalibrada() {
-        return focalCalibrada && muestrasDistanciaPupilar >= 3;
+    /** Desviación estándar de la distancia durante la prueba (cm). */
+    public synchronized double getDesviacionDistanciaCm() {
+        if (muestrasDistancia < 2) return Double.NaN;
+        double media = sumaDistanciaCm / muestrasDistancia;
+        return Math.sqrt(Math.max(0, sumaCuadradosDistanciaCm / muestrasDistancia - media * media));
     }
 
     public Mat getUltimoFrame() {
         return ultimoFrame;
     }
-
-    public int getUltimoAnchoRostroPx() { return ultimoAnchoRostroPx; }
 
     public double getUltimaDistanciaCm() {
         return ultimaDistanciaCm;

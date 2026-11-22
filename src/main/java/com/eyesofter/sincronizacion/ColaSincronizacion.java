@@ -122,7 +122,7 @@ public final class ColaSincronizacion {
     public static String semaforo(ResultadoClinico r) {
         return switch (r.getPrioridadSeguimiento()) {
             case SIN_BANDERAS -> "VERDE";
-            case PROGRAMADA, PREFERENTE -> "AMARILLO";
+            case NO_CONCLUYENTE, PROGRAMADA, PREFERENTE -> "AMARILLO";
             case PRIORITARIA -> "ROJO";
         };
     }

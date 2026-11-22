@@ -3,6 +3,7 @@ package com.eyesofter.ui;
 import com.eyesofter.camara.DetectorDistancia;
 import com.eyesofter.clinica.ResultadoClinico;
 import com.eyesofter.config.AppConfig;
+import com.eyesofter.formulas.TrigonometriaVisual;
 import com.eyesofter.medicion_snellen.MotorSnellen;
 import com.eyesofter.voz.ReconocedorOptotipos;
 import com.eyesofter.voz.VozGuia;
@@ -66,6 +67,7 @@ public class ControladorSnellen implements ControladorDeVista {
     @FXML private VBox panelRespaldo;
     @FXML private Label lblAlerta;
     @FXML private HBox controlesAlerta;
+    @FXML private Label lblAyudaOperador;
 
     private static final int MAX_REINTENTOS_LETRA = 2;
     private static final int LECTURAS_PARA_PAUSA = 3;
@@ -75,6 +77,7 @@ public class ControladorSnellen implements ControladorDeVista {
 
     private Stage stage;
     private MotorSnellen motor;
+    private boolean esE;
     private MotorSnellen.Fila filaActual;
     private DetectorDistancia detectorDistancia;
     private Timeline vigilanciaDistancia;
@@ -114,7 +117,12 @@ public class ControladorSnellen implements ControladorDeVista {
         motor = new MotorSnellen(null, detectorDistancia);
         motor.configurarEntornoPrueba(SesionEvaluacion.getDistanciaMetros(), SesionEvaluacion.getPpi(), AppConfig.FUENTE_OPTOTIPO_DEFECTO);
         motor.setEscalaSalida(escalaPantalla());
+        motor.setTipoOptotipo(SesionEvaluacion.getTipoOptotipo());
+        esE = motor.getTipoOptotipo() == MotorSnellen.TipoOptotipo.E_DIRECCIONAL;
+        fijarEspacioOptotipos();
         motor.reiniciarInteractivo();
+        if (detectorDistancia != null) detectorDistancia.setDpPacienteMm(SesionEvaluacion.getDpPaciente());
+        comprobarPantallaCalibrada();
         ojoActual = SesionEvaluacion.getFaseActual().ojo();
         if (ojoActual == ResultadoClinico.Ojo.AMBOS) {
             if (detectorDistancia != null) detectorDistancia.iniciarRegistroFiabilidad();
@@ -124,8 +132,9 @@ public class ControladorSnellen implements ControladorDeVista {
         panelRespaldo.setManaged(asistida);
         lblOjo.setText(ojoActual.abreviatura());
         lblOjo.getStyleClass().add("insignia-" + ojoActual.name().toLowerCase(Locale.ROOT));
-        lblInstruccion.setText(instruccionOjo());
+        lblInstruccion.setText(instruccionOjo() + avisoPantalla);
         if (asistida) instalarAtajos();
+        if (esE && lblAyudaOperador != null) lblAyudaOperador.setText("Flechas ↑ ↓ ← → = lo que señala, en orden  ·  Clic o teclas 1-4 cambian ✓/✗  ·  Enter registra  ·  V voz  ·  Retroceso deshace");
         if (detectorDistancia == null) lblDistancia.setText("Cámara no activa");
         prepararVoz();
         mostrarSiguienteLinea();
@@ -134,19 +143,57 @@ public class ControladorSnellen implements ControladorDeVista {
 
     /** Escalado de Windows de la pantalla donde está la ventana (1.0, 1.25, 1.5…). */
     private double escalaPantalla() {
+        return pantallaActual().getOutputScaleY();
+    }
+
+    private Screen pantallaActual() {
         Screen pantalla = Screen.getPrimary();
         if (stage != null && !Double.isNaN(stage.getX()) && stage.getWidth() > 0) {
             pantalla = Screen.getScreensForRectangle(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight())
                     .stream().findFirst().orElse(pantalla);
         }
-        return pantalla.getOutputScaleY();
+        return pantalla;
+    }
+
+    private String avisoPantalla = "";
+
+    /**
+     * Espacio para la fila de optotipos: el ancho de la ventana menos márgenes y ~45 %
+     * del alto (el resto lo ocupan la barra, la instrucción y el registro del operador).
+     * Si la fila 20/200 no cabe, el motor empieza en la primera que sí cabe.
+     */
+    private void fijarEspacioOptotipos() {
+        javafx.geometry.Rectangle2D zona = pantallaActual().getVisualBounds();
+        double ancho = stage != null && stage.getWidth() > 0 ? stage.getWidth() : zona.getWidth();
+        double alto = stage != null && stage.getHeight() > 0 ? stage.getHeight() : zona.getHeight();
+        motor.setEspacioDisponible(ancho - 80, alto * 0.45);
+        SesionEvaluacion.registrarFilaInicial(motor.getLogMarFilaInicial());
+        if (motor.getNivelInicial() > 0) {
+            avisoPantalla += "\nLas filas más grandes no caben en esta pantalla a esta distancia: la prueba empieza en "
+                    + MotorSnellen.formatoSnellen(TrigonometriaVisual.decimalDesdeLogMAR(motor.getLogMarFilaInicial())) + ".";
+        }
+    }
+
+    /**
+     * El PPI se mide en una pantalla concreta. Si la prueba se muestra en otra (un
+     * proyector, un segundo monitor), las letras tendrían otro tamaño físico.
+     */
+    private void comprobarPantallaCalibrada() {
+        Boolean coincide = IdentidadPantalla.coincideConCalibrada(pantallaActual());
+        SesionEvaluacion.registrarCoincidenciaPantalla(coincide);
+        if (Boolean.FALSE.equals(coincide)) {
+            avisoPantalla += "\n⚠ Esta pantalla no es la que se midió con la tarjeta: el tamaño de las letras puede no ser correcto.";
+        }
     }
 
     private String instruccionOjo() {
+        String como = esE ? "  ·  Indique hacia dónde apuntan las patitas de la E (↑ ↓ ← →)." : "";
         return switch (ojoActual) {
-            case DERECHO -> "👁  Ojo DERECHO · Tape el ojo izquierdo con la palma, sin presionar.";
-            case IZQUIERDO -> "👁  Ojo IZQUIERDO · Tape el ojo derecho con la palma, sin presionar.";
-            default -> "👁  Ambos ojos descubiertos.";
+            // En niños la palma deja ver entre los dedos (y eso mejora falsamente el ojo evaluado):
+            // se recomienda un parche o tapaojos.
+            case DERECHO -> "👁  Ojo DERECHO · Tape el ojo izquierdo con un parche o tapaojos (o la palma, sin presionar ni dejar ver entre los dedos)." + como;
+            case IZQUIERDO -> "👁  Ojo IZQUIERDO · Tape el ojo derecho con un parche o tapaojos (o la palma, sin presionar ni dejar ver entre los dedos)." + como;
+            default -> "👁  Ambos ojos descubiertos." + como;
         };
     }
 
@@ -168,7 +215,7 @@ public class ControladorSnellen implements ControladorDeVista {
         Thread hilo = new Thread(() -> {
             try {
                 ReconocedorOptotipos r = ReconocedorOptotipos.compartido();
-                r.setModo(ReconocedorOptotipos.ModoPrueba.SNELLEN);
+                r.setModo(esE ? ReconocedorOptotipos.ModoPrueba.DIRECCIONES : ReconocedorOptotipos.ModoPrueba.SNELLEN);
                 Platform.runLater(() -> {
                     if (finalizada || !SesionEvaluacion.estaActiva()) return;
                     reconocedor = r;
@@ -218,14 +265,15 @@ public class ControladorSnellen implements ControladorDeVista {
         lblLinea.setText(String.format(Locale.US, "Fila %d · %s · LogMAR %.1f", numero,
                 MotorSnellen.formatoSnellen(filaActual.vDecimal), filaActual.logMar));
         // Progreso según lo pequeño de la fila (la prueba termina antes si la persona deja de leer).
-        barraProgreso.setProgress((filaActual.nivel + 1) / (double) MotorSnellen.getNumeroNiveles());
+        barraProgreso.setProgress((filaActual.nivel + 1) / (double) motor.getNivelesMedibles());
         prepararOptotipos();
         txtRespuestaManual.clear();
         lblOido.setText("");
         btnDeshacer.setDisable(motor.getFilasEvaluadas() == 0);
         instantePresentacionNs = System.nanoTime();
         if (asistida) {
-            ponerEstado("Pida a la persona que lea las letras de izquierda a derecha.", EstadoMicrofono.ESPERA);
+            ponerEstado(esE ? "Pida que señale hacia dónde apuntan las patitas de cada figura, de izquierda a derecha (use las flechas del teclado)."
+                    : "Pida a la persona que lea las letras de izquierda a derecha.", EstadoMicrofono.ESPERA);
             raiz.requestFocus();
         } else if (reconocedor != null) {
             indiceAutonomo = 0;
@@ -241,15 +289,26 @@ public class ControladorSnellen implements ControladorDeVista {
         botonesMarca.clear();
         marcasLeidas = new boolean[filaActual.letras.length];
         java.util.Arrays.fill(marcasLeidas, true);
+        indiceFlechas = 0;
         for (int i = 0; i < filaActual.letras.length; i++) {
             String letra = filaActual.letras[i];
-            Label etiqueta = new Label(letra);
-            etiqueta.getStyleClass().add("optotipo-individual");
-            etiqueta.setStyle(String.format(Locale.US, "-fx-font-family: '%s'; -fx-font-size: %.2fpx;", AppConfig.FUENTE_OPTOTIPO_DEFECTO, filaActual.tamanioPx));
+            Label etiqueta;
+            if (esE) {
+                etiqueta = new Label();
+                etiqueta.setGraphic(OptotipoE.crear(filaActual.tamanioPx, letra));
+                etiqueta.getStyleClass().add("optotipo-individual");
+                // Espaciado = un optotipo de ancho (criterio de apiñamiento ETDRS); sin mínimo
+                // fijo para no separar más las E pequeñas, que las haría más fáciles.
+                contenedorOptotipos.setSpacing(filaActual.tamanioPx);
+            } else {
+                etiqueta = new Label(letra);
+                etiqueta.getStyleClass().add("optotipo-individual");
+                etiqueta.setStyle(String.format(Locale.US, "-fx-font-family: '%s'; -fx-font-size: %.2fpx;", AppConfig.FUENTE_OPTOTIPO_DEFECTO, filaActual.tamanioPx));
+                // Espaciado entre letras = ancho de una letra (criterio de apiñamiento ETDRS).
+                contenedorOptotipos.setSpacing(filaActual.tamanioPx * 0.72);
+            }
             etiquetasOptotipos.add(etiqueta);
             contenedorOptotipos.getChildren().add(etiqueta);
-            // Espaciado entre letras = ancho de una letra (criterio de apiñamiento ETDRS).
-            contenedorOptotipos.setSpacing(Math.max(12, filaActual.tamanioPx * 0.72));
 
             if (asistida) {
                 final int indice = i;
@@ -279,6 +338,11 @@ public class ControladorSnellen implements ControladorDeVista {
         if (introduccionDada) { empezar.run(); return; }
         introduccionDada = true;
         ponerEstado("Escuche la instrucción…", EstadoMicrofono.ESPERA);
+        if (esE) {
+            VozGuia.decir("Vas a ver unas figuras como una mesita con patitas. Cuando escuches el tono, di hacia dónde apuntan las patitas de la figura marcada: arriba, abajo, derecha o izquierda.",
+                    () -> VozGuia.decir("Si no la ves bien, di: no sé.", empezar));
+            return;
+        }
         VozGuia.decir("Vas a ver tres letras. Cuando escuches el tono, di en voz alta la letra marcada.",
                 () -> VozGuia.decir("Si no la ves, di: no sé.", empezar));
     }
@@ -303,11 +367,11 @@ public class ControladorSnellen implements ControladorDeVista {
         if (pausada || finalizada) return;
         final int indiceEsperado = indiceAutonomo;
         final int generacion = ++generacionCaptura;
-        ponerEstado("Di la letra marcada", EstadoMicrofono.ESPERA);
+        ponerEstado(esE ? "Di hacia dónde apuntan las patitas" : "Di la letra marcada", EstadoMicrofono.ESPERA);
         VozGuia.tono(() -> {
             if (pausada || finalizada || generacion != generacionCaptura) return;
             capturando = true;
-            ponerEstado("Escuchando…  di la letra marcada", EstadoMicrofono.ESCUCHANDO);
+            ponerEstado(esE ? "Escuchando…  ¿hacia dónde apuntan?" : "Escuchando…  di la letra marcada", EstadoMicrofono.ESCUCHANDO);
             ReconocedorOptotipos r = reconocedor;
             Thread hilo = new Thread(() -> {
                 String respuesta;
@@ -340,7 +404,9 @@ public class ControladorSnellen implements ControladorDeVista {
                 registrarLetraAutonoma(false);
                 return;
             }
-            String pedido = reintentosLetra == 1 ? "No te entendí. Repite la letra marcada." : "Si no la ves, di: no sé.";
+            String pedido = reintentosLetra == 1
+                    ? (esE ? "No te entendí. Di arriba, abajo, derecha o izquierda." : "No te entendí. Repite la letra marcada.")
+                    : "Si no la ves, di: no sé.";
             ponerEstado(pedido, EstadoMicrofono.ERROR);
             VozGuia.decir(pedido, this::escucharLetraAutonoma);
             return;
@@ -354,6 +420,9 @@ public class ControladorSnellen implements ControladorDeVista {
         // Puede llegar más de una letra ("C,D,O") si la persona leyó la fila seguida.
         String[] letras = respuesta.split(",");
         lblOido.setText("Escuché: " + (oido == null || oido.isBlank() ? String.join(" ", letras) : "«" + oido + "»"));
+        // Para la E cuenta una sola dirección por figura (la última dicha, p. ej. "arriba… no, abajo"):
+        // nombrar varias de corrido no debe llenar las figuras siguientes.
+        if (esE && letras.length > 1) letras = new String[]{letras[letras.length - 1]};
         for (String letra : letras) {
             if (indiceAutonomo >= filaActual.letras.length) break;
             boolean acierto = filaActual.letras[indiceAutonomo].equals(letra.trim());
@@ -398,15 +467,48 @@ public class ControladorSnellen implements ControladorDeVista {
             if (pausada || finalizada) return;
             boolean enTexto = e.getTarget() instanceof TextField;
             KeyCode c = e.getCode();
-            if (!enTexto && (c == KeyCode.DIGIT1 || c == KeyCode.NUMPAD1)) { alternarMarca(0); e.consume(); }
+            if (!enTexto && esE && c.isArrowKey()) { registrarFlecha(c); e.consume(); }
+            else if (!enTexto && (c == KeyCode.DIGIT1 || c == KeyCode.NUMPAD1)) { alternarMarca(0); e.consume(); }
             else if (!enTexto && (c == KeyCode.DIGIT2 || c == KeyCode.NUMPAD2)) { alternarMarca(1); e.consume(); }
             else if (!enTexto && (c == KeyCode.DIGIT3 || c == KeyCode.NUMPAD3)) { alternarMarca(2); e.consume(); }
+            else if (!enTexto && (c == KeyCode.DIGIT4 || c == KeyCode.NUMPAD4)) { alternarMarca(3); e.consume(); }
             else if (!enTexto && c == KeyCode.A) { marcarTodasCorrectas(); e.consume(); }
             else if (!enTexto && c == KeyCode.N) { marcarNinguna(); e.consume(); }
             else if (!enTexto && c == KeyCode.V) { capturarPorVoz(); e.consume(); }
             else if (!enTexto && c == KeyCode.BACK_SPACE) { deshacerFila(); e.consume(); }
             else if (!enTexto && c == KeyCode.ENTER) { registrarRespuestaManual(); e.consume(); }
         });
+    }
+
+    private int indiceFlechas;
+
+    /**
+     * E direccional en modo asistido: el operador pulsa la flecha que el niño señala,
+     * en orden de izquierda a derecha; cada flecha se compara con la E de esa posición.
+     */
+    private void registrarFlecha(KeyCode c) {
+        if (capturando || pausada || filaActual == null || indiceFlechas >= marcasLeidas.length) return;
+        String dicha = switch (c) {
+            case UP, KP_UP -> MotorSnellen.E_ARRIBA;
+            case DOWN, KP_DOWN -> MotorSnellen.E_ABAJO;
+            case LEFT, KP_LEFT -> MotorSnellen.E_IZQUIERDA;
+            default -> MotorSnellen.E_DERECHA;
+        };
+        marcasLeidas[indiceFlechas] = filaActual.letras[indiceFlechas].equals(dicha);
+        indiceFlechas++;
+        actualizarMarcas();
+        ponerEstado(indiceFlechas >= marcasLeidas.length ? "Revise y presione Enter para registrar la fila."
+                : "Flecha " + indiceFlechas + " de " + marcasLeidas.length + " registrada.", EstadoMicrofono.ESPERA);
+    }
+
+    private static String flecha(String direccion) {
+        return switch (direccion) {
+            case MotorSnellen.E_ARRIBA -> "↑";
+            case MotorSnellen.E_ABAJO -> "↓";
+            case MotorSnellen.E_IZQUIERDA -> "←";
+            case MotorSnellen.E_DERECHA -> "→";
+            default -> direccion;
+        };
     }
 
     private void alternarMarca(int indice) {
@@ -425,7 +527,7 @@ public class ControladorSnellen implements ControladorDeVista {
         for (int i = 0; i < etiquetasOptotipos.size(); i++) {
             if (i < botonesMarca.size()) {
                 Button b = botonesMarca.get(i);
-                b.setText((i + 1) + "  " + filaActual.letras[i] + "  " + (marcasLeidas[i] ? "✓" : "✗"));
+                b.setText((i + 1) + "  " + (esE ? flecha(filaActual.letras[i]) : filaActual.letras[i]) + "  " + (marcasLeidas[i] ? "✓" : "✗"));
                 b.getStyleClass().removeAll("marca-leida", "marca-no-leida");
                 b.getStyleClass().add(marcasLeidas[i] ? "marca-leida" : "marca-no-leida");
             }
@@ -446,11 +548,22 @@ public class ControladorSnellen implements ControladorDeVista {
         SesionEvaluacion.registrarEntradaManual();
         if (!normalizada.isEmpty()) {
             if (normalizada.length() != filaActual.letras.length) {
-                ponerEstado("Escriba exactamente " + filaActual.letras.length + " letras (use ? para una letra no leída) o borre el texto y use las marcas.", EstadoMicrofono.ERROR);
+                ponerEstado(esE
+                        ? "Escriba " + filaActual.letras.length + " direcciones (A = arriba, B = abajo, I = izquierda, D = derecha, ? = no vio) o use las flechas del teclado."
+                        : "Escriba exactamente " + filaActual.letras.length + " letras (use ? para una letra no leída) o borre el texto y use las marcas.", EstadoMicrofono.ERROR);
                 return;
             }
-            for (int i = 0; i < filaActual.letras.length; i++)
-                marcasLeidas[i] = filaActual.letras[i].equals(String.valueOf(normalizada.charAt(i)));
+            for (int i = 0; i < filaActual.letras.length; i++) {
+                String escrita = String.valueOf(normalizada.charAt(i));
+                if (esE) escrita = switch (escrita) {
+                    case "A" -> MotorSnellen.E_ARRIBA;
+                    case "B" -> MotorSnellen.E_ABAJO;
+                    case "I" -> MotorSnellen.E_IZQUIERDA;
+                    case "D" -> MotorSnellen.E_DERECHA;
+                    default -> "?";
+                };
+                marcasLeidas[i] = filaActual.letras[i].equals(escrita);
+            }
             actualizarMarcas();
         }
         int aciertos = 0;
@@ -465,7 +578,8 @@ public class ControladorSnellen implements ControladorDeVista {
         SesionEvaluacion.registrarEntradaVoz();
         btnEscuchar.setDisable(true);
         btnRegistrar.setDisable(true);
-        ponerEstado("Escuchando… la persona debe leer las " + filaActual.letras.length + " letras.", EstadoMicrofono.ESCUCHANDO);
+        ponerEstado(esE ? "Escuchando… la persona debe decir las " + filaActual.letras.length + " direcciones."
+                : "Escuchando… la persona debe leer las " + filaActual.letras.length + " letras.", EstadoMicrofono.ESCUCHANDO);
         final int generacion = ++generacionCaptura;
         final int cantidad = filaActual.letras.length;
         ReconocedorOptotipos r = reconocedor;
@@ -486,7 +600,7 @@ public class ControladorSnellen implements ControladorDeVista {
                     marcasLeidas[i] = filaActual.letras[i].equals(dicha);
                 }
                 actualizarMarcas();
-                lblOido.setText("Escuché: " + String.join(" ", resultado));
+                lblOido.setText("Escuché: " + String.join(" ", esE ? resultado.stream().map(ControladorSnellen::flecha).toList() : resultado));
                 ponerEstado("Revise las marcas y presione Enter para registrar.", EstadoMicrofono.ESPERA);
             });
         }, "captura-snellen");
@@ -677,17 +791,19 @@ public class ControladorSnellen implements ControladorDeVista {
 
     private void registrarMetricasFiabilidad() {
         long promedio = SesionEvaluacion.getPromedioRespuestaMs();
+        // La distancia objetivo se guarda siempre: sin cámara también es una condición de la prueba.
+        SesionEvaluacion.registrarCondicionesDistancia(SesionEvaluacion.getDistanciaMetros(),
+                com.eyesofter.formulas.CalibracionFocal.toleranciaEfectivaCm(AppConfig.TOLERANCIA_DISTANCIA_CM, SesionEvaluacion.getDistanciaMetros() * 100.0));
+        SesionEvaluacion.getResultadoClinico().registrarCondiciones(SesionEvaluacion.construirCondiciones(escalaPantalla()));
+        // La DP solo se informa si se MIDIÓ con cinta; la estimada por edad no es una medición del paciente.
+        boolean dpMedida = SesionEvaluacion.getFuenteDp() == com.eyesofter.clinica.CondicionesPrueba.FuenteDp.MEDIDA_CON_CINTA;
+        SesionEvaluacion.registrarDistanciaPupilar(dpMedida ? SesionEvaluacion.getDpPaciente() : Double.NaN, dpMedida);
         if (detectorDistancia == null) {
             SesionEvaluacion.registrarFiabilidad(Double.NaN, 0, promedio);
-            SesionEvaluacion.registrarDistanciaPupilar(Double.NaN, false);
             return;
         }
         SesionEvaluacion.registrarFiabilidad(detectorDistancia.getCumplimientoDistanciaPorcentaje(),
                 detectorDistancia.getMuestrasFiabilidad(), promedio);
-        SesionEvaluacion.registrarCondicionesDistancia(detectorDistancia.getDistanciaObjetivo() / 100.0,
-                AppConfig.TOLERANCIA_DISTANCIA_CM);
-        SesionEvaluacion.registrarDistanciaPupilar(detectorDistancia.getDistanciaPupilarPromedioMm(),
-                detectorDistancia.isDistanciaPupilarCalibrada());
     }
 
     private void restaurarControles() {

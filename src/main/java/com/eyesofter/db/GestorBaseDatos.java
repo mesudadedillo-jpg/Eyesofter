@@ -124,6 +124,11 @@ public class GestorBaseDatos {
             asegurarColumna(stmt, "evaluacion", "distancia_objetivo_m", "REAL");
             asegurarColumna(stmt, "evaluacion", "tolerancia_distancia_cm", "REAL");
             asegurarColumna(stmt, "evaluacion", "alertas_clinicas", "TEXT");
+            asegurarColumna(stmt, "evaluacion", "edad_anios", "REAL");
+            asegurarColumna(stmt, "evaluacion", "tipo_optotipo", "TEXT");
+            asegurarColumna(stmt, "evaluacion", "limite_pantalla_logmar", "REAL");
+            asegurarColumna(stmt, "evaluacion", "distancia_real_m", "REAL");
+            asegurarColumna(stmt, "evaluacion", "condiciones_prueba", "TEXT");
 
             // Tabla Citas
             stmt.execute("CREATE TABLE IF NOT EXISTS cita (" +
@@ -467,8 +472,9 @@ public class GestorBaseDatos {
                 "curp_paciente, fecha_hora, agudeza_izq, agudeza_der, resultado_ishihara, tasa_ruido_wer, estado_recomendacion, " +
                 "snellen_izq, snellen_der, snellen_ao, logmar_izq, logmar_der, logmar_ao, dioptrias_izq, dioptrias_der, dioptrias_ao, " +
                 "ishihara_aciertos, ishihara_total, ishihara_respuestas_deficiencia, cumplimiento_distancia_pct, " +
-                "muestras_distancia, tiempo_respuesta_ms, distancia_pupilar_mm, dp_calibrada, metodo_entrada, distancia_objetivo_m, tolerancia_distancia_cm, alertas_clinicas" +
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "muestras_distancia, tiempo_respuesta_ms, distancia_pupilar_mm, dp_calibrada, metodo_entrada, distancia_objetivo_m, tolerancia_distancia_cm, alertas_clinicas, " +
+                "edad_anios, tipo_optotipo, limite_pantalla_logmar, distancia_real_m, condiciones_prueba" +
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = abrirConexion();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, curpPaciente.trim().toUpperCase());
@@ -500,6 +506,12 @@ public class GestorBaseDatos {
             setNullableDouble(pstmt, 26, resultado.getDistanciaObjetivoMetros());
             setNullableDouble(pstmt, 27, resultado.getToleranciaDistanciaCm());
             pstmt.setString(28, resultado.getAlertasComoTexto());
+            com.eyesofter.clinica.CondicionesPrueba c = resultado.getCondiciones();
+            setNullableDouble(pstmt, 29, resultado.getEdadAnios());
+            pstmt.setString(30, c == null ? null : c.tipoOptotipo);
+            setNullableDouble(pstmt, 31, c == null ? null : c.logMarLimitePantalla);
+            setNullableDouble(pstmt, 32, c == null ? null : c.distanciaRealPromedioM);
+            pstmt.setString(33, c == null ? null : c.resumen());
             return pstmt.executeUpdate() > 0;
         } catch (Exception e) {
             System.err.println("[DB ERROR]: No se pudo registrar la evaluación clínica estructurada: " + e.getMessage());
@@ -773,6 +785,11 @@ public class GestorBaseDatos {
         info.distanciaObjetivoMetros = getNullableDouble(rs, "distancia_objetivo_m");
         info.toleranciaDistanciaCm = getNullableDouble(rs, "tolerancia_distancia_cm");
         info.alertasClinicas = rs.getString("alertas_clinicas");
+        info.edadAnios = getNullableDouble(rs, "edad_anios");
+        info.tipoOptotipo = rs.getString("tipo_optotipo");
+        info.limitePantallaLogmar = getNullableDouble(rs, "limite_pantalla_logmar");
+        info.distanciaRealMetros = getNullableDouble(rs, "distancia_real_m");
+        info.condicionesPrueba = rs.getString("condiciones_prueba");
     }
 
     // =========================================================================
@@ -794,6 +811,8 @@ public class GestorBaseDatos {
         public Double cumplimientoDistanciaPct, distanciaPupilarMm;
         public Long tiempoRespuestaMs;
         public boolean dpCalibrada;
+        public Double edadAnios, limitePantallaLogmar, distanciaRealMetros;
+        public String tipoOptotipo, condicionesPrueba;
     }
 
     public static class CitaInfo {

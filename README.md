@@ -27,6 +27,54 @@ muestra lo enviado, lo pendiente y lo que necesita corrección (por ejemplo, una
 Las contraseñas se guardan con hash PBKDF2 (nunca en texto plano), 3 intentos fallidos bloquean la cuenta
 15 minutos, y la contraseña inicial `root` debe cambiarse en el primer acceso.
 
+## Exactitud clínica: equipo, distancia y edad
+
+El resultado depende del equipo y de la persona; la aplicación se ajusta a ambos y
+guarda en cada expediente (base local y PDF) las condiciones en que se midió.
+
+**Pantalla**
+- El tamaño real se mide una vez por equipo con una tarjeta bancaria o credencial
+  (Configuración → *Medir con tarjeta*). La medición queda ligada a esa pantalla: si
+  la prueba se muestra en otra, se avisa.
+- Una fila cuyo optotipo mediría menos de 5 píxeles físicos no se muestra (ya no
+  tendría su forma). Si la persona lee la fila más pequeña posible, el resultado se
+  marca "en el límite de la pantalla"; si la pantalla no alcanza la línea de
+  referencia para la edad, el tamizaje sale **no concluyente** y la pantalla de
+  configuración indica a qué distancia hay que alejarse.
+- Si la fila 20/200 no cabe en la ventana (distancias largas en laptops), la prueba
+  empieza en la primera fila que cabe y da por leídas las de arriba (criterio ETDRS).
+- La altura de las letras se mide sobre la tipografía que realmente se dibuja (si
+  Arial no está instalada, la sustituta tiene otra altura).
+
+**Distancia (cámara)**
+- Se ubican los ojos con YuNet (`modelo_opencv/face_detection_yunet_2023mar.onnx`,
+  licencia MIT, OpenCV 4.9; corre en cualquier CPU) y se usa la distancia entre
+  pupilas (DP) del paciente: medida con cinta en la sesión, capturada por la clínica
+  o estimada por la edad. Antes se suponía la misma DP para todos y a los niños se
+  les pedía acercarse de más (su agudeza salía mejor de lo real).
+- Calibración: con la persona a una distancia medida con cinta, *Calibrar a esta
+  distancia*. Sin cinta: 4 hojas tamaño carta a lo largo miden 1.12 m. Con la cámara
+  ya calibrada, la misma acción mide la DP real del paciente.
+- La tolerancia de distancia es la configurada, pero nunca más del 10 % de la
+  distancia objetivo.
+
+**Edad**
+- Se toma de la fecha de nacimiento o, si falta, de la CURP.
+- Menores de 6 años: se sugiere la **E direccional** (4 por fila, se pasa con 3/4,
+  puntuación por fila completa para controlar el azar). Se responde señalando
+  (flechas del teclado en modo asistido) o diciendo arriba/abajo/izquierda/derecha.
+- Línea aprobatoria por edad (AAPOS/AAP 2016, ajustable en `ResultadoClinico`):
+  3 años 20/50, 4 años 20/40, 5–17 años 20/32; adultos, 20/40. Menores de 3 años:
+  aviso de que los optotipos no son confiables (fotocribado o valoración pediátrica).
+
+**Otras condiciones que se registran**: si usa lentes y si los traía, brillo al
+máximo sin reflejos y sin "Luz nocturna", optotipo usado y método de captura (voz
+o manual; en menores de 8 años se recomienda el modo asistido).
+
+**Contraste y Amsler**: el contraste se puntúa con el gris que realmente se dibuja
+(con 8 bits los niveles más finos se repetían) y siempre con letras de 2.8°; la
+rejilla de Amsler indica la distancia exacta (29 cm, o menos si la pantalla obliga a
+reducirla).
 ## Datos clínicos: nunca en el repositorio ni en el instalador
 
 `eyesofter_local.db`, `citas_agenda.json`, `eyesofter_export.sql`, `eyesofter_config.properties` y `.env` están en

@@ -7,8 +7,17 @@ package com.eyesofter.formulas;
  *   <li>Tripletes con log CS = 0.00, 0.15, … 2.25 (16 tripletes).</li>
  *   <li>Contraste de Weber C = 10^(−log CS) sobre fondo blanco.</li>
  *   <li>Termina cuando un triplete tiene 2 o más letras no leídas.</li>
- *   <li>Puntuación letra por letra: log CS = 0.05 · letras leídas − 0.15.</li>
+ *   <li>Puntuación letra por letra: cada letra vale 1/3 del paso entre tripletes.</li>
  * </ul>
+ *
+ * <h3>Contraste realmente dibujado</h3>
+ * Con 8 bits por canal solo existen 256 grises. Los tripletes 1.95, 2.10 y 2.25 caen
+ * los tres en el gris 254 (contraste real ≈ log CS 2.05) y 1.50 / 1.65 se dibujan
+ * como 1.45 / 1.58. Antes se puntuaba con el valor nominal: se mostraba el mismo
+ * gris tres veces y se acreditaba hasta 2.25, y cerca del corte normal/limítrofe
+ * (1.65) el resultado salía corrido. Ahora: (1) solo se muestran tripletes con un
+ * gris distinto al anterior y (2) cada letra se puntúa con el contraste real del
+ * gris que se dibujó.
  */
 public final class SensibilidadContraste {
     public static final int NUMERO_TRIPLETES = 16;
@@ -18,26 +27,56 @@ public final class SensibilidadContraste {
 
     private int tripletes;
     private int letrasLeidas;
+    private final java.util.List<Integer> letrasPorTriplete = new java.util.ArrayList<>();
     private boolean terminada;
 
     /** Nivel de gris (sRGB) para un contraste y el contraste que realmente se logra con 8 bits. */
     public record Gris(int valor8bits, double contrasteReal) { }
 
-    public void reiniciar() { tripletes = 0; letrasLeidas = 0; terminada = false; }
+    public void reiniciar() { tripletes = 0; letrasLeidas = 0; letrasPorTriplete.clear(); terminada = false; }
 
     public void registrarTriplete(int leidas) {
         if (terminada) return;
         int n = Math.max(0, Math.min(3, leidas));
         letrasLeidas += n;
+        letrasPorTriplete.add(n);
         tripletes++;
-        if (n <= 1 || tripletes >= NUMERO_TRIPLETES) terminada = true;
+        if (n <= 1 || tripletes >= tripletesRepresentables()) terminada = true;
+    }
+
+    /**
+     * Tripletes que se pueden dibujar con un gris distinto al anterior (con 8 bits: 14,
+     * hasta el nominal 1.95). Los siguientes repetirían el mismo gris.
+     */
+    public static int tripletesRepresentables() {
+        int n = 1;
+        while (n < NUMERO_TRIPLETES
+                && grisParaLogCs(logCsDeTriplete(n)).valor8bits() != grisParaLogCs(logCsDeTriplete(n - 1)).valor8bits()) n++;
+        return n;
+    }
+
+    /** log CS del contraste que realmente se dibuja para el triplete (0 para el primero). */
+    public static double logCsRealDeTriplete(int indice) {
+        if (indice <= 0) return 0.0;
+        return -Math.log10(grisParaLogCs(logCsDeTriplete(indice)).contrasteReal());
     }
 
     public boolean terminada() { return terminada; }
     public int getTripletesEvaluados() { return tripletes; }
 
+    /**
+     * Letra por letra con el contraste real: cada letra del triplete i vale 1/3 del
+     * salto entre el contraste real del triplete anterior y el suyo. Con pasos
+     * exactos de 0.15 es la fórmula clásica 0.05 · letras − 0.15.
+     */
     public double getLogCs() {
-        double valor = 0.05 * letrasLeidas - 0.15;
+        double valor = -PASO_LOG;
+        double anterior = -PASO_LOG;
+        for (int i = 0; i < letrasPorTriplete.size(); i++) {
+            double real = logCsRealDeTriplete(i);
+            valor += letrasPorTriplete.get(i) / 3.0 * (real - anterior);
+            anterior = real;
+        }
         return Math.max(0, Math.round(valor * 100.0) / 100.0);
     }
 
