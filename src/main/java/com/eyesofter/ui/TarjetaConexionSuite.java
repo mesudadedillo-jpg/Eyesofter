@@ -237,7 +237,7 @@ final class TarjetaConexionSuite {
         }
     }
 
-    private static boolean abrirNavegador(String url) {
+    static boolean abrirNavegador(String url) {
         try {
             if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
                 java.awt.Desktop.getDesktop().browse(java.net.URI.create(url));

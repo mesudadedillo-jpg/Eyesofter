@@ -107,6 +107,8 @@ public class AppConfig {
     // Conexión con EYESOFTER Suite (servidor de la app móvil y del portal web)
     /** Dirección base del servidor de EYESOFTER Suite. */
     public static String URL_API_SUITE = "https://eyesofter-api.up.railway.app";
+    /** Portal web de EYESOFTER Suite: de ahí sale la página "Descarga la app" (/App) y su QR. */
+    public static String URL_PORTAL = "https://eyesofterweb-production.up.railway.app";
     /**
      * Token de ESTE equipo. Se obtiene al vincularlo: alguien de Dirección o Enfermería inicia
      * sesión en el navegador con su cuenta del portal y lo autoriza. Vacío = equipo sin vincular,
@@ -192,6 +194,7 @@ public class AppConfig {
 
             URL_BASE_DATOS = p.getProperty("urlBaseDatos", URL_BASE_DATOS);
             URL_API_SUITE = p.getProperty("urlApiSuite", URL_API_SUITE);
+            URL_PORTAL = p.getProperty("urlPortal", URL_PORTAL);
             // "claveApiEscritorio" (la antigua clave compartida) se ignora a propósito y se borra al guardar.
             TOKEN_EQUIPO = p.getProperty("tokenEquipo", TOKEN_EQUIPO);
             VINCULADO_POR = p.getProperty("vinculadoPor", VINCULADO_POR);
@@ -250,6 +253,7 @@ public class AppConfig {
 
         p.setProperty("urlBaseDatos", URL_BASE_DATOS);
         p.setProperty("urlApiSuite", URL_API_SUITE);
+        p.setProperty("urlPortal", URL_PORTAL);
         p.setProperty("tokenEquipo", TOKEN_EQUIPO);
         p.setProperty("vinculadoPor", VINCULADO_POR);
         p.setProperty("nombreEquipo", NOMBRE_EQUIPO);

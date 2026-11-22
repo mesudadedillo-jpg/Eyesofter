@@ -37,6 +37,10 @@ public class ControladorPanelPrincipal implements ControladorDeVista {
         ControladorVerificacionPerifericos.mostrarVentana(stage);
     }
 
+    @FXML private void descargarAppMovil() {
+        DialogoAppMovil.mostrar(stage);
+    }
+
     @FXML private void cerrarSesion() {
         Navegador.mostrar(stage, "/fxml/Acceso.fxml", "EYESOFTER · Iniciar sesión");
     }
