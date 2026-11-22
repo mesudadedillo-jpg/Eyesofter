@@ -30,6 +30,7 @@ class EnvioTamizajeTest {
         assertEquals("20/40", ColaSincronizacion.agudeza(r.getOjoDerecho()));
         assertNull(ColaSincronizacion.agudeza(r.getOjoIzquierdo()), "<20/200 no cabe en 20/NN: va en observaciones");
         assertTrue(ColaSincronizacion.observaciones(r).contains("<20/200"));
+        assertFalse(ColaSincronizacion.observaciones(r).contains("LogMAR"), "sin términos técnicos para el tutor");
     }
 
     @Test
