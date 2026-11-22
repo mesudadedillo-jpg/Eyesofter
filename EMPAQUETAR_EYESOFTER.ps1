@@ -99,11 +99,23 @@ Write-Host 'Transfiriendo recursos clínicos y de IA...' -ForegroundColor Yellow
 $directorioExe = Join-Path $salida 'EYESOFTER'
 $directorioApp = Join-Path $salida 'EYESOFTER\app'
 
-$recursosExternos = @('modelo_opencv', 'modelo_tts', 'modelo_vosk', 'eyesofter_config.properties', 'eyesofter_local.db', '.env')
+# SOLO modelos. NUNCA se empaquetan la base clínica (eyesofter_local.db), la agenda, la
+# configuración (eyesofter_config.properties, que guarda el token del equipo) ni .env:
+# quien instalara la aplicación recibiría los datos de los alumnos de este equipo.
+# Cada instalación empieza vacía y se vincula con el portal desde Configuración.
+$recursosExternos = @('modelo_opencv', 'modelo_tts', 'modelo_vosk')
 
 foreach ($recurso in $recursosExternos) {
     $origen = Join-Path $raiz $recurso
     if (Test-Path $origen) { Copy-Item $origen $directorioExe -Recurse -Force }
+}
+
+# Por si quedaron de un empaquetado anterior: la distribución no debe llevar datos.
+foreach ($sensible in @('eyesofter_local.db', 'eyesofter_local.db.antes-de-migracion.bak', 'citas_agenda.json', 'eyesofter_config.properties', '.env', 'eyesofter_export.sql')) {
+    foreach ($carpeta in @($directorioExe, $directorioApp)) {
+        $ruta = Join-Path $carpeta $sensible
+        if (Test-Path $ruta) { Remove-Item -LiteralPath $ruta -Force }
+    }
 }
 
 $marca = Join-Path $directorioApp 'VERSION_ACTUAL.txt'

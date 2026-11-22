@@ -10,11 +10,11 @@ Para crear o actualizar esa distribución desde el código, ejecute desde PowerS
 .\EMPAQUETAR_EYESOFTER.ps1
 ```
 
-La carpeta completa `release\EYESOFTER` contiene el ejecutable, Java, los modelos de voz y cámara, la base de datos y el archivo local `.env`; no se deben separar sus archivos.
+La carpeta completa `release\EYESOFTER` contiene el ejecutable, Java y los modelos de voz y cámara; no se deben separar sus archivos. **No** lleva la base de datos clínica, la agenda, la configuración ni `.env`: cada instalación empieza vacía y, para enviar tamizajes al portal, se vincula desde *Configuración → Conexión con EYESOFTER Suite → Vincular este equipo* con una cuenta de Dirección o Enfermería.
 
 Para usarla en otro equipo Windows, copie la carpeta completa `dist\EYESOFTER` y ejecute `EYESOFTER.exe`. No requiere instalar Java ni Maven.
 
-Las credenciales locales se encuentran en `dist\EYESOFTER\app\.env`. El acceso inicial es `root` / `root`.
+El acceso local inicial es `root` / `root` y se pide cambiar la contraseña en el primer ingreso. Esa cuenta es solo de este equipo: no da acceso a los datos del portal.
 
 ## Maven para desarrollo
 
