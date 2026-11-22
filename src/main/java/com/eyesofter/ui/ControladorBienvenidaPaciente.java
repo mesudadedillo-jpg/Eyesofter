@@ -155,7 +155,7 @@ public class ControladorBienvenidaPaciente {
         Task<Void> tareaReconocimiento = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                File carpetaModelo = new File("modelo_vosk/vosk-model-es-0.42");
+                File carpetaModelo = new File(com.eyesofter.config.AppConfig.RUTA_MODELO_VOSK);
                 String rutaModeloAbsoluta = carpetaModelo.getAbsolutePath();
 
                 try (Model modelo = new Model(rutaModeloAbsoluta);

@@ -1,79 +1,99 @@
-$ErrorActionPreference = 'Stop'
-Write-Host 'Compilando EYESOFTER…' -ForegroundColor Cyan
+﻿$ErrorActionPreference = 'Stop'
+Write-Host 'Compilando EYESOFTER...' -ForegroundColor Cyan
 
 $raiz = $PSScriptRoot
-$jdk = Join-Path $env:ProgramFiles 'Microsoft\jdk-21.0.8.9-hotspot\bin'
-$javac = Join-Path $jdk 'javac.exe'
-$jar = Join-Path $jdk 'jar.exe'
-$jpackage = Join-Path $jdk 'jpackage.exe'
+. (Join-Path $raiz 'scripts\Herramientas.ps1')
 
-# Verificar herramientas de Java
-foreach ($herramienta in @($javac, $jar, $jpackage)) {
-    if (-not (Test-Path $herramienta)) { throw "No se encontró: $herramienta" }
-}
+# --- Java y Maven: se buscan en el equipo (ya no hay rutas fijas) ---
+$jdk = Get-EyesofterJdk
+if (-not $jdk) { throw 'No se encontro un JDK 17+ con jpackage. Ejecute INSTALAR_REQUISITOS.bat (como administrador).' }
+$mvn = Get-EyesofterMaven
+if (-not $mvn) { throw 'No se encontro Maven. Ejecute INSTALAR_REQUISITOS.bat (como administrador).' }
 
-# Configuración de carpetas temporales y de salida
+$env:JAVA_HOME = $jdk
+$env:Path = "$jdk\bin;$env:Path"
+$javac = Join-Path $jdk 'bin\javac.exe'
+$jar = Join-Path $jdk 'bin\jar.exe'
+$jpackage = Join-Path $jdk 'bin\jpackage.exe'
+$java = Join-Path $jdk 'bin\java.exe'
+Write-Host "JDK:   $jdk"
+Write-Host "Maven: $mvn"
+
+# --- Carpetas temporales y de salida ---
 $temporal = Join-Path $raiz 'tmp\empaquetado-actual'
 $clases = Join-Path $temporal 'classes'
 $entrada = Join-Path $temporal 'input'
 $modulosJavaFx = Join-Path $temporal 'javafx-modules'
+$dependencias = Join-Path $temporal 'deps'
 $salida = Join-Path $raiz 'release'
 
 if (Test-Path $temporal) { Remove-Item -LiteralPath $temporal -Recurse -Force }
-New-Item -ItemType Directory -Force -Path $clases, $entrada, $modulosJavaFx | Out-Null
+New-Item -ItemType Directory -Force -Path $clases, $entrada, $modulosJavaFx, $dependencias, $salida | Out-Null
 
-# Dependencias del proyecto
-$dependencias = @(
-    "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-base\17.0.2\javafx-base-17.0.2-win.jar",
-    "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-controls\17.0.2\javafx-controls-17.0.2-win.jar",
-    "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-fxml\17.0.2\javafx-fxml-17.0.2-win.jar",
-    "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-graphics\17.0.2\javafx-graphics-17.0.2-win.jar",
-    "$env:USERPROFILE\.m2\repository\com\google\code\gson\gson\2.10.1\gson-2.10.1.jar",
-    "$env:USERPROFILE\.m2\repository\org\openpnp\opencv\4.5.1-2\opencv-4.5.1-2.jar",
-    "$env:USERPROFILE\.m2\repository\net\java\dev\jna\jna\5.14.0\jna-5.14.0.jar",
-    "$env:USERPROFILE\.m2\repository\com\alphacephei\vosk\0.3.32\vosk-0.3.32.jar",
-    "$env:USERPROFILE\.m2\repository\org\xerial\sqlite-jdbc\3.42.0.0\sqlite-jdbc-3.42.0.0.jar",
-    "$env:USERPROFILE\.m2\repository\org\apache\pdfbox\pdfbox\2.0.27\pdfbox-2.0.27.jar",
-    "$env:USERPROFILE\.m2\repository\org\apache\pdfbox\fontbox\2.0.27\fontbox-2.0.27.jar",
-    "$env:USERPROFILE\.m2\repository\commons-logging\commons-logging\1.2\commons-logging-1.2.jar"
-)
+# --- Dependencias: las versiones salen del pom.xml ---
+# Antes se tomaban de una lista fija en .m2 (con OpenCV 4.5.1, que no trae FaceDetectorYN
+# y hacia fallar la compilacion). Ahora Maven descarga y copia exactamente lo del pom.
+Write-Host 'Resolviendo dependencias con Maven...' -ForegroundColor Yellow
+& $mvn -B -q -f (Join-Path $raiz 'pom.xml') 'org.apache.maven.plugins:maven-dependency-plugin:3.6.1:copy-dependencies' '-DincludeScope=runtime' "-DoutputDirectory=$dependencias"
+if ($LASTEXITCODE -ne 0) { throw 'Maven no pudo descargar las dependencias (revise la conexion a internet).' }
 
-foreach ($archivo in $dependencias) {
-    if (-not (Test-Path $archivo)) { throw "Dependencia no encontrada: $archivo" }
-}
+$jars = Get-ChildItem -LiteralPath $dependencias -Filter '*.jar'
+$jarsJavaFx = @($jars | Where-Object { $_.Name -like 'javafx-*-win.jar' })
+$jarsLibs = @($jars | Where-Object { $_.Name -notlike 'javafx-*' })
+if ($jarsJavaFx.Count -lt 4) { throw "Faltan los modulos de JavaFX para Windows (se encontraron $($jarsJavaFx.Count))." }
 
-$javafx = $dependencias | Where-Object { $_ -match 'javafx-' }
-Copy-Item $javafx $modulosJavaFx -Force
+$jarsJavaFx | Copy-Item -Destination $modulosJavaFx -Force
+$jarsLibs | Copy-Item -Destination $entrada -Force
 
-Write-Host 'Compilando código fuente...' -ForegroundColor Yellow
-$archivosJava = Get-ChildItem (Join-Path $raiz 'src\main\java') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName
-& $javac -proc:none -encoding UTF-8 -cp ($dependencias -join ';') -d $clases $archivosJava
-if ($LASTEXITCODE -ne 0) { throw 'La compilación falló.' }
+# --- Compilacion ---
+Write-Host 'Compilando codigo fuente...' -ForegroundColor Yellow
+$classpath = (@($jarsJavaFx) + @($jarsLibs) | ForEach-Object { $_.FullName }) -join ';'
+$fuentes = Get-ChildItem (Join-Path $raiz 'src\main\java') -Recurse -Filter '*.java' | ForEach-Object { '"' + ($_.FullName -replace '\\', '/') + '"' }
+$listaFuentes = Join-Path $temporal 'fuentes.txt'
+[IO.File]::WriteAllLines($listaFuentes, $fuentes)
+
+& $javac -proc:none -encoding UTF-8 --release 17 -cp $classpath -d $clases "@$listaFuentes"
+if ($LASTEXITCODE -ne 0) { throw 'La compilacion fallo (ver errores arriba).' }
 
 Copy-Item (Join-Path $raiz 'src\main\resources\*') $clases -Recurse -Force
 
-Write-Host 'Creando archivo JAR y vinculando librerías externas...' -ForegroundColor Yellow
-$libsNormales = $dependencias | Where-Object { $_ -notmatch 'javafx-' }
-Copy-Item $libsNormales $entrada
-
-# --- INICIO DE LA CORRECCIÓN MAGISTRAL (EL MANIFEST) ---
-$nombresLibs = ($libsNormales | Split-Path -Leaf) -join ' '
+# --- JAR con Class-Path (manifest con lineas de maximo 72 bytes) ---
+Write-Host 'Creando archivo JAR...' -ForegroundColor Yellow
+function Formatear-LineaManifest([string] $linea) {
+    if ($linea.Length -le 70) { return $linea }
+    $partes = New-Object System.Collections.Generic.List[string]
+    $partes.Add($linea.Substring(0, 70))
+    $resto = $linea.Substring(70)
+    while ($resto.Length -gt 0) {
+        $n = [Math]::Min(69, $resto.Length)
+        $partes.Add(' ' + $resto.Substring(0, $n))
+        $resto = $resto.Substring($n)
+    }
+    return ($partes -join "`r`n")
+}
+$nombresLibs = ($jarsLibs | ForEach-Object { $_.Name }) -join ' '
 $manifestPath = Join-Path $temporal 'MANIFEST.MF'
-$manifestContenido = "Manifest-Version: 1.0`r`nMain-Class: com.eyesofter.MainApp`r`nClass-Path: $nombresLibs`r`n"
-Set-Content -Path $manifestPath -Value $manifestContenido -Encoding Ascii
+$manifest = "Manifest-Version: 1.0`r`nMain-Class: com.eyesofter.MainApp`r`n" + (Formatear-LineaManifest "Class-Path: $nombresLibs") + "`r`n"
+[IO.File]::WriteAllText($manifestPath, $manifest, [Text.Encoding]::ASCII)
 
-# Usamos el manifest recién creado para compilar el JAR
 & $jar --create --file (Join-Path $entrada 'eyesofter-app.jar') --manifest $manifestPath -C $clases .
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear el JAR.' }
-# --- FIN DE LA CORRECCIÓN ---
 
+# --- Imagen de aplicacion con jpackage ---
 if (Test-Path (Join-Path $salida 'EYESOFTER')) {
     Remove-Item -LiteralPath (Join-Path $salida 'EYESOFTER') -Recurse -Force
 }
 
-Write-Host 'Empaquetando aplicación y recursos con jpackage…' -ForegroundColor Green
-$iconoIco = Join-Path $raiz 'src\main\resources\img\eyesofter.ico'
+# Modulos del runtime. Antes faltaba java.net.http (envio de tamizajes al portal) y
+# jdk.crypto.ec (HTTPS). Solo se agregan los que existan en este JDK.
+$deseados = @('java.base', 'java.desktop', 'java.logging', 'java.sql', 'java.net.http', 'java.naming',
+              'java.xml', 'java.prefs', 'java.management', 'java.scripting', 'jdk.unsupported',
+              'jdk.crypto.ec', 'jdk.crypto.cryptoki', 'jdk.localedata', 'jdk.charsets', 'jdk.zipfs')
+$disponibles = (& $java --list-modules) | ForEach-Object { ($_ -split '@')[0].Trim() }
+$modulos = @($deseados | Where-Object { $disponibles -contains $_ }) + @('javafx.controls', 'javafx.fxml')
 
+Write-Host 'Empaquetando aplicacion con jpackage...' -ForegroundColor Green
+$iconoIco = Join-Path $raiz 'src\main\resources\img\eyesofter.ico'
 $argsJpackage = @(
     '--type', 'app-image',
     '--name', 'EYESOFTER',
@@ -83,34 +103,27 @@ $argsJpackage = @(
     '--main-class', 'com.eyesofter.MainApp',
     '--dest', $salida,
     '--module-path', $modulosJavaFx,
-    '--add-modules', 'javafx.controls,javafx.fxml,java.sql,jdk.unsupported,java.desktop,java.logging',
-    '--java-options', '-Deyesofter.home=$APPDIR'
+    '--add-modules', ($modulos -join ','),
+    '--java-options', '-Dfile.encoding=UTF-8'
 )
-
-if (Test-Path $iconoIco) {
-    $argsJpackage += '--icon'
-    $argsJpackage += $iconoIco
-}
+if (Test-Path $iconoIco) { $argsJpackage += @('--icon', $iconoIco) }
 
 & $jpackage $argsJpackage
-if ($LASTEXITCODE -ne 0) { throw 'jpackage no pudo crear la aplicación.' }
+if ($LASTEXITCODE -ne 0) { throw 'jpackage no pudo crear la aplicacion.' }
 
-Write-Host 'Transfiriendo recursos clínicos y de IA...' -ForegroundColor Yellow
+# --- Modelos (nunca datos clinicos) ---
+Write-Host 'Copiando modelos de camara y voz...' -ForegroundColor Yellow
 $directorioExe = Join-Path $salida 'EYESOFTER'
-$directorioApp = Join-Path $salida 'EYESOFTER\app'
+$directorioApp = Join-Path $directorioExe 'app'
 
-# SOLO modelos. NUNCA se empaquetan la base clínica (eyesofter_local.db), la agenda, la
-# configuración (eyesofter_config.properties, que guarda el token del equipo) ni .env:
-# quien instalara la aplicación recibiría los datos de los alumnos de este equipo.
-# Cada instalación empieza vacía y se vincula con el portal desde Configuración.
-$recursosExternos = @('modelo_opencv', 'modelo_tts', 'modelo_vosk')
-
-foreach ($recurso in $recursosExternos) {
+# SOLO modelos. NUNCA se empaquetan la base clinica (eyesofter_local.db), la agenda, la
+# configuracion (eyesofter_config.properties, que guarda el token del equipo) ni .env.
+foreach ($recurso in @('modelo_opencv', 'modelo_tts', 'modelo_vosk')) {
     $origen = Join-Path $raiz $recurso
     if (Test-Path $origen) { Copy-Item $origen $directorioExe -Recurse -Force }
+    else { Write-Host "  (no existe $recurso; ejecute INSTALAR_REQUISITOS.bat para descargarlo)" -ForegroundColor DarkYellow }
 }
 
-# Por si quedaron de un empaquetado anterior: la distribución no debe llevar datos.
 foreach ($sensible in @('eyesofter_local.db', 'eyesofter_local.db.antes-de-migracion.bak', 'citas_agenda.json', 'eyesofter_config.properties', '.env', 'eyesofter_export.sql')) {
     foreach ($carpeta in @($directorioExe, $directorioApp)) {
         $ruta = Join-Path $carpeta $sensible
@@ -121,6 +134,6 @@ foreach ($sensible in @('eyesofter_local.db', 'eyesofter_local.db.antes-de-migra
 $marca = Join-Path $directorioApp 'VERSION_ACTUAL.txt'
 Set-Content -LiteralPath $marca -Value (Get-Date -Format o) -Encoding UTF8
 
-Write-Host "=========================================" -ForegroundColor Green
-Write-Host " LISTO: $(Join-Path $salida 'EYESOFTER\EYESOFTER.exe')" -ForegroundColor Green
-Write-Host "=========================================" -ForegroundColor Green
+Write-Host '=========================================' -ForegroundColor Green
+Write-Host " LISTO: $(Join-Path $directorioExe 'EYESOFTER.exe')" -ForegroundColor Green
+Write-Host '=========================================' -ForegroundColor Green

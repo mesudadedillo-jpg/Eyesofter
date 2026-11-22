@@ -12,3 +12,8 @@ eyesofter_config.properties
 release/
 dist/
 tmp/
+
+# Descargados por INSTALAR_REQUISITOS.bat (pesados, no van al repositorio)
+herramientas/
+modelo_vosk/
+modelo_tts/

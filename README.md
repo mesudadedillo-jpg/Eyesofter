@@ -1,6 +1,13 @@
 # Eyesofter
 Desktop aplication
 
+## Cómo ejecutarlo
+
+1. `INSTALAR_REQUISITOS.bat` (se abre como administrador: instala Java 21, Maven y los modelos de voz, y compila).
+2. `INICIAR_EYESOFTER.bat`.
+
+Detalles en [EJECUTAR_EYESOFTER.md](EJECUTAR_EYESOFTER.md).
+
 ## Conexión con EYESOFTER Suite (C-RFN-02, C-RFNN-03)
 
 Cada tamizaje terminado se envía al servidor de la Suite para que Enfermería le dé seguimiento en el

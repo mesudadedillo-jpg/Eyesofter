@@ -1,4 +1,4 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
-start "" powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0scripts\Iniciar-Eyesofter.ps1"
+start "" powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0scripts\Iniciar-Eyesofter.ps1"

@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 try {
     $raiz = Split-Path -Parent $PSScriptRoot
@@ -106,6 +106,24 @@ try {
     $requiereActualizacion = -not (Test-Path -LiteralPath $app) -or -not (Test-Path -LiteralPath $marca) -or ($ultimaModificacion -gt (Get-Item -LiteralPath $marca).LastWriteTime)
 
     if ($requiereActualizacion) {
+        # --- REQUISITOS: Java, Maven y modelo de voz ---
+        . (Join-Path $PSScriptRoot 'Herramientas.ps1')
+        $faltaVosk = -not (Test-Path -LiteralPath (Join-Path $raiz 'modelo_vosk\vosk-model-small-es-0.42'))
+        if (-not (Test-EyesofterRequisitos) -or $faltaVosk) {
+            MostrarEstado 'Faltan componentes por instalar…'
+            $ventana.TopMost = $false
+            $respuesta = [System.Windows.Forms.MessageBox]::Show(
+                "Para compilar EYESOFTER faltan componentes (Java, Maven o el modelo de voz).`n`n¿Instalarlos ahora? Windows pedirá permiso de administrador y se descargarán de internet.",
+                'EYESOFTER - Requisitos', 'YesNo', 'Question')
+            if ($respuesta -ne 'Yes') { throw 'Instalación cancelada. Ejecute INSTALAR_REQUISITOS.bat cuando quiera instalar los requisitos.' }
+            MostrarEstado 'Instalando requisitos (ver la ventana de instalación)…'
+            $instalador = Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -PassThru -ArgumentList @(
+                '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $PSScriptRoot 'Instalar-Requisitos.ps1')`"", '-SinCompilar')
+            if ($instalador.ExitCode -ne 0) { throw 'La instalación de requisitos falló. Ejecute INSTALAR_REQUISITOS.bat para ver el detalle.' }
+            $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+            if (-not (Test-EyesofterRequisitos)) { throw 'Siguen faltando Java o Maven. Ejecute INSTALAR_REQUISITOS.bat como administrador.' }
+        }
+
         # --- SANEADOR AUTOMÁTICO ---
         # Si hay nueva versión, borramos cachés viejas antes de compilar para evitar conflictos
         MostrarEstado 'Limpiando versiones y cachés anteriores…'
@@ -117,7 +135,12 @@ try {
         New-Item -ItemType Directory -Force -Path $temporal, $salida | Out-Null
 
         MostrarEstado 'Actualizando aplicación y compilando componentes…'
-        $proceso = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $raiz 'EMPAQUETAR_EYESOFTER.ps1')) -PassThru
+        $registro = Join-Path $temporal 'empaquetado.log'
+        $registroErr = Join-Path $temporal 'empaquetado-errores.log'
+        $proceso = Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -PassThru `
+            -RedirectStandardOutput $registro -RedirectStandardError $registroErr `
+            -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $raiz 'EMPAQUETAR_EYESOFTER.ps1')`"")
+        $null = $proceso.Handle   # sin esto ExitCode puede quedar vacío
         $pasos = @('Compilando código…', 'Empaquetando aplicación…', 'Copiando recursos clínicos…', 'Finalizando actualización…')
         $indice = 0
         while (-not $proceso.HasExited) {
@@ -125,7 +148,12 @@ try {
             Start-Sleep -Milliseconds 1200
             $indice++
         }
-        if ($proceso.ExitCode -ne 0) { throw 'Falló el script EMPAQUETAR_EYESOFTER.ps1. Revisa los errores de compilación.' }
+        $proceso.WaitForExit()
+        if ($proceso.ExitCode -ne 0) {
+            $detalle = @()
+            foreach ($r in @($registro, $registroErr)) { if (Test-Path $r) { $detalle += Get-Content -LiteralPath $r -Tail 25 } }
+            throw ("Falló EMPAQUETAR_EYESOFTER.ps1. Registro completo en:`n$registro`n`n" + ($detalle -join "`n"))
+        }
     }
 
     if (-not (Test-Path -LiteralPath $app)) { throw "No se encontró el ejecutable en: $app" }
@@ -142,5 +170,5 @@ try {
 } catch {
     if ($null -ne $ventana) { $ventana.Hide() }
     Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
-    [System.Windows.Forms.MessageBox]::Show($_.Exception.ToString(), 'Error Crítico en EYESOFTER', 'OK', 'Error') | Out-Null
+    [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Error en EYESOFTER', 'OK', 'Error') | Out-Null
 }
