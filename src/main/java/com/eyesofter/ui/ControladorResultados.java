@@ -70,7 +70,7 @@ public class ControladorResultados implements ControladorDeVista {
             var envio = t.getValue();
             boolean pedirMatricula = false;
             if (!com.eyesofter.sincronizacion.ClienteSuite.estaConfigurado()) {
-                lblEnvio.setText("⚠ Guardado en este equipo. Configure la conexión con el portal para que el tutor reciba el aviso.");
+                lblEnvio.setText("⚠ Guardado en este equipo. Vincule este equipo con el portal (Configuración) para que el tutor reciba el aviso.");
             } else if (envio == null || envio.estado() == com.eyesofter.sincronizacion.ColaSincronizacion.Estado.PENDIENTE) {
                 lblEnvio.setText("⟳ Enviando al portal… " + (envio != null && envio.ultimoError() != null ? "(" + envio.ultimoError() + " Se reintentará solo.)" : ""));
             } else if (envio.estado() == com.eyesofter.sincronizacion.ColaSincronizacion.Estado.ENVIADO) {

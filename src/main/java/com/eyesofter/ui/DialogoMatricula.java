@@ -42,7 +42,7 @@ public final class DialogoMatricula {
         resultados.setPrefHeight(180);
         resultados.setPlaceholder(new Label(ClienteSuite.estaConfigurado()
                 ? "Busque por nombre para elegir al alumno."
-                : "Configure la conexión con el portal en Configuración para poder buscar."));
+                : "Vincule este equipo con el portal (Configuración) para poder buscar."));
         Label estado = new Label();
         estado.setWrapText(true);
         buscar.setDisable(!ClienteSuite.estaConfigurado());

@@ -1,3 +1,14 @@
 .env
 target/
 cache_voz/
+
+# Datos clínicos y configuración local: NUNCA al repositorio ni a la distribución.
+eyesofter_local.db
+eyesofter_local.db.*
+*.db
+eyesofter_export.sql
+citas_agenda.json
+eyesofter_config.properties
+release/
+dist/
+tmp/

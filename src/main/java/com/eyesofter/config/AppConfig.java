@@ -105,10 +105,16 @@ public class AppConfig {
     public static boolean TEMA_OSCURO = false;
 
     // Conexión con EYESOFTER Suite (servidor de la app móvil y del portal web)
-    /** Dirección base del servidor, p. ej. https://eyesofter-api.up.railway.app */
-    public static String URL_API_SUITE = "";
-    /** Clave del escritorio (X-Api-Key). La variable de entorno EYESOFTER_API_KEY tiene prioridad. */
-    public static String CLAVE_API_ESCRITORIO = "";
+    /** Dirección base del servidor de EYESOFTER Suite. */
+    public static String URL_API_SUITE = "https://eyesofterandroid-production.up.railway.app";
+    /**
+     * Token de ESTE equipo. Se obtiene al vincularlo: alguien de Dirección o Enfermería inicia
+     * sesión en el navegador con su cuenta del portal y lo autoriza. Vacío = equipo sin vincular,
+     * sin acceso a ningún dato de la escuela. Ya no existe una clave compartida.
+     */
+    public static String TOKEN_EQUIPO = "";
+    /** Quién autorizó este equipo (correo de la cuenta del portal), para mostrarlo en Configuración. */
+    public static String VINCULADO_POR = "";
     /** Nombre del equipo que aparece en las alertas de sincronización. */
     public static String NOMBRE_EQUIPO = "Enfermería PC1";
 
@@ -140,8 +146,6 @@ public class AppConfig {
         if (!archivo.exists()) {
 
             cargado = true;
-            String claveSinArchivo = System.getenv("EYESOFTER_API_KEY");
-            if (claveSinArchivo != null && !claveSinArchivo.isBlank()) CLAVE_API_ESCRITORIO = claveSinArchivo.trim();
 
             return;
 
@@ -188,7 +192,9 @@ public class AppConfig {
 
             URL_BASE_DATOS = p.getProperty("urlBaseDatos", URL_BASE_DATOS);
             URL_API_SUITE = p.getProperty("urlApiSuite", URL_API_SUITE);
-            CLAVE_API_ESCRITORIO = p.getProperty("claveApiEscritorio", CLAVE_API_ESCRITORIO);
+            // "claveApiEscritorio" (la antigua clave compartida) se ignora a propósito y se borra al guardar.
+            TOKEN_EQUIPO = p.getProperty("tokenEquipo", TOKEN_EQUIPO);
+            VINCULADO_POR = p.getProperty("vinculadoPor", VINCULADO_POR);
             NOMBRE_EQUIPO = p.getProperty("nombreEquipo", NOMBRE_EQUIPO);
 
         } catch (IOException e) {
@@ -198,8 +204,6 @@ public class AppConfig {
         }
 
         cargado = true;
-        String claveEntorno = System.getenv("EYESOFTER_API_KEY");
-        if (claveEntorno != null && !claveEntorno.isBlank()) CLAVE_API_ESCRITORIO = claveEntorno.trim();
 
     }
 
@@ -246,7 +250,8 @@ public class AppConfig {
 
         p.setProperty("urlBaseDatos", URL_BASE_DATOS);
         p.setProperty("urlApiSuite", URL_API_SUITE);
-        p.setProperty("claveApiEscritorio", CLAVE_API_ESCRITORIO);
+        p.setProperty("tokenEquipo", TOKEN_EQUIPO);
+        p.setProperty("vinculadoPor", VINCULADO_POR);
         p.setProperty("nombreEquipo", NOMBRE_EQUIPO);
 
         try (FileOutputStream out = new FileOutputStream(new File(DIRECTORIO_APLICACION, ARCHIVO_PROPIEDADES))) {
