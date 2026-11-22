@@ -586,3 +586,11 @@
 /* Desplazamiento sin fondo propio. No usar -fx-background: transparent: JavaFX deriva de él el
    color de texto de casillas y reglas, que se volvería invisible. */
 .scroll-transparente, .scroll-transparente > .viewport { -fx-background-color: transparent; }
+
+/* --- Navegación del panel: atrás / adelante / actualizar --- */
+.boton-nav-panel { -fx-background-color: transparent; -fx-border-color: #D5DEE2; -fx-border-radius: 8px; -fx-background-radius: 8px;
+    -fx-text-fill: #164E59; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 4 11; -fx-cursor: hand; }
+.boton-nav-panel:hover { -fx-background-color: #E8F1F3; }
+.boton-nav-panel:disabled { -fx-opacity: 0.35; }
+.tema-oscuro .boton-nav-panel { -fx-text-fill: #E3F1F4; -fx-border-color: #2F5A64; }
+.tema-oscuro .boton-nav-panel:hover { -fx-background-color: #1C3D47; }

@@ -49,7 +49,7 @@ public class ControladorBienvenidaPaciente {
             controlador.inicializarDatos(stage, nombreA);
 
             stage.setTitle("EYESOFTER · Instrucciones para la persona paciente");
-            stage.setScene(new Scene(root));
+            stage.setScene(new Scene(PantallaAdaptable.envolver(root, true)));
 
             ModoKiosco.aplicar(stage);
 

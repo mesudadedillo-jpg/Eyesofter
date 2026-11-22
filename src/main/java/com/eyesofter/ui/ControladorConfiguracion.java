@@ -68,7 +68,7 @@ public class ControladorConfiguracion {
             controlador.inicializarDatos(stage, curpPaciente, nombrePaciente, gradoGrupo);
 
             stage.setTitle("EYESOFTER · Configuración del entorno");
-            Scene escena = new Scene(root);
+            Scene escena = new Scene(PantallaAdaptable.envolver(root, true));
             TemaAplicacion.aplicar(escena);
             stage.setScene(escena);
             ModoKiosco.aplicar(stage);

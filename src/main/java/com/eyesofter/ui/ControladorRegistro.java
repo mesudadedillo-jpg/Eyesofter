@@ -52,7 +52,7 @@ public class ControladorRegistro {
             controlador.inicializar(stage);
 
             stage.setTitle("EYESOFTER · Registro de paciente");
-            stage.setScene(new Scene(root));
+            stage.setScene(new Scene(PantallaAdaptable.envolver(root, true)));
 
             ModoKiosco.aplicar(stage);
 

@@ -67,12 +67,22 @@ public class ControladorDashboardAdministrativo implements VistaAdministrativa {
         colHora.setCellValueFactory(c -> texto(c.getValue().hora()));
         colEspera.setCellValueFactory(c -> texto(c.getValue().espera()));
         colEstado.setCellValueFactory(c -> texto(c.getValue().estado()));
-        agendaHora.setCellValueFactory(c -> texto(c.getValue().hora + " (" + c.getValue().fecha + ")"));
+        // Hora compacta: "09:30" si es hoy, "23/11 09:30" si es otro día (la fecha completa
+        // aparece al pasar el mouse si no cabe).
+        agendaHora.setCellValueFactory(c -> texto(horaCorta(c.getValue())));
+        tablaAgenda.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         agendaPaciente.setCellValueFactory(c -> texto(c.getValue().nombrePaciente));
         agendaTipo.setCellValueFactory(c -> texto(c.getValue().tipo));
 
         tablaCola.setRowFactory(tabla -> {
             TableRow<FilaCola> fila = new TableRow<>();
+            ContextMenu menuCola = new ContextMenu();
+            MenuItem mIniciarCola = new MenuItem("▶ Iniciar tamizaje");
+            mIniciarCola.setOnAction(e -> { if (!fila.isEmpty()) iniciarFila(fila.getItem()); });
+            menuCola.getItems().add(mIniciarCola);
+            fila.contextMenuProperty().bind(
+                    javafx.beans.binding.Bindings.when(fila.emptyProperty()).then((ContextMenu) null).otherwise(menuCola)
+            );
             fila.setOnMouseClicked(e -> {
                 if (fila.isEmpty()) return;
                 seleccionCurp = fila.getItem().paciente.curp;
@@ -90,6 +100,8 @@ public class ControladorDashboardAdministrativo implements VistaAdministrativa {
         tablaAgenda.setRowFactory(tabla -> {
             TableRow<GestorBaseDatos.CitaInfo> fila = new TableRow<>();
             ContextMenu menu = new ContextMenu();
+            MenuItem mIniciar = new MenuItem("▶ Iniciar tamizaje");
+            mIniciar.setOnAction(e -> { if (!fila.isEmpty()) iniciarCita(fila.getItem()); });
             MenuItem mCompletar = new MenuItem("✔ Marcar como Completada");
             MenuItem mCancelar = new MenuItem("✖ Cancelar Cita");
             MenuItem mEliminar = new MenuItem("🗑 Eliminar Cita");
@@ -113,7 +125,7 @@ public class ControladorDashboardAdministrativo implements VistaAdministrativa {
                 }
             });
 
-            menu.getItems().addAll(mCompletar, mCancelar, new SeparatorMenuItem(), mEliminar);
+            menu.getItems().addAll(mIniciar, new SeparatorMenuItem(), mCompletar, mCancelar, new SeparatorMenuItem(), mEliminar);
             fila.contextMenuProperty().bind(
                     javafx.beans.binding.Bindings.when(fila.emptyProperty()).then((ContextMenu) null).otherwise(menu)
             );
@@ -126,9 +138,8 @@ public class ControladorDashboardAdministrativo implements VistaAdministrativa {
 
         cargarDatos();
 
-        actualizacionAutomatica = new Timeline(new KeyFrame(javafx.util.Duration.seconds(3), e -> cargarDatos()));
-        actualizacionAutomatica.setCycleCount(Timeline.INDEFINITE);
-        actualizacionAutomatica.play();
+        // Solo se refresca mientras esta vista está en pantalla (ver ActualizacionPeriodica).
+        actualizacionAutomatica = ActualizacionPeriodica.mientrasVisible(tablaCola, javafx.util.Duration.seconds(3), this::cargarDatos);
     }
 
     private void cargarDatos() {
@@ -186,6 +197,17 @@ public class ControladorDashboardAdministrativo implements VistaAdministrativa {
         boolean haySeleccion = seleccion != null;
         btnIniciarSeleccion.setVisible(haySeleccion);
         btnIniciarSeleccion.setManaged(haySeleccion);
+    }
+
+    private static String horaCorta(GestorBaseDatos.CitaInfo cita) {
+        String hora = cita.hora == null ? "" : cita.hora;
+        try {
+            LocalDate fecha = LocalDate.parse(cita.fecha);
+            if (fecha.equals(LocalDate.now())) return hora;
+            return String.format("%02d/%02d %s", fecha.getDayOfMonth(), fecha.getMonthValue(), hora);
+        } catch (Exception e) {
+            return hora + (cita.fecha == null ? "" : " (" + cita.fecha + ")");
+        }
     }
 
     @Override

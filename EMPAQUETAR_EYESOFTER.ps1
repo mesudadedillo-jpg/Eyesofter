@@ -113,6 +113,11 @@ if ($LASTEXITCODE -ne 0) { throw 'jpackage no pudo crear la aplicacion.' }
 
 # --- Modelos (nunca datos clinicos) ---
 Write-Host 'Copiando modelos de camara y voz...' -ForegroundColor Yellow
+# Copia de los modulos JavaFX para arrancar con javaw.exe del JDK (firmado), porque Windows
+# puede bloquear EYESOFTER.exe al no tener firma digital.
+$destinoFx = Join-Path (Join-Path $salida 'EYESOFTER') 'javafx'
+New-Item -ItemType Directory -Force -Path $destinoFx | Out-Null
+$jarsJavaFx | Copy-Item -Destination $destinoFx -Force
 $directorioExe = Join-Path $salida 'EYESOFTER'
 $directorioApp = Join-Path $directorioExe 'app'
 

@@ -57,7 +57,7 @@
                     <Button fx:id="btnIniciarSeleccion" text="Iniciar seleccionada" onAction="#iniciarSeleccion" styleClass="boton-primario"/>
                 </HBox>
             </VBox>
-            <VBox prefWidth="260" spacing="10" styleClass="tarjeta-admin">
+            <VBox prefWidth="400" minWidth="320" spacing="10" styleClass="tarjeta-admin">
                 <HBox>
                     <Label text="Agenda del Día" styleClass="subtitulo-seccion"/>
                     <Region HBox.hgrow="ALWAYS"/>
@@ -66,8 +66,8 @@
                 <Label fx:id="lblSinAgenda" text="No hay citas programadas. Agéndalas desde la ficha del paciente." wrapText="true" styleClass="etiqueta-subtitulo"/>
                 <TableView fx:id="tablaAgenda" VBox.vgrow="ALWAYS">
                     <columns>
-                        <TableColumn fx:id="agendaHora" text="HORA" prefWidth="58"/>
-                        <TableColumn fx:id="agendaPaciente" text="PACIENTE" prefWidth="115"/>
+                        <TableColumn fx:id="agendaHora" text="HORA" prefWidth="95"/>
+                        <TableColumn fx:id="agendaPaciente" text="PACIENTE" prefWidth="140"/>
                         <TableColumn fx:id="agendaTipo" text="TIPO" prefWidth="80"/>
                     </columns>
                 </TableView>

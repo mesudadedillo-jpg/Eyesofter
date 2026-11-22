@@ -42,6 +42,10 @@ public final class Navegador {
 
             stage.setTitle(titulo);
             actual = new Ruta(recursoFxml, titulo);
+            InteraccionTablas.instalarEn(root);
+            // Pantallas administrativas y formularios: escala automática + scroll + zoom.
+            // Las pruebas clínicas quedan intactas (el tamaño físico es parte de la medición).
+            if (!esPantallaClinica(recursoFxml)) root = PantallaAdaptable.envolver(root, false);
             root = envolverConRegreso(root, recursoFxml, stage);
 
             // --- Lógica SPA para evitar el parpadeo (Flickering) ---
@@ -96,8 +100,29 @@ public final class Navegador {
         historial.clear(); futuro.clear();
     }
 
+    /** Vistas donde el tamaño en pantalla es parte de la medición: no se escalan. */
+    static boolean esPantallaClinica(String recurso) {
+        return recurso.endsWith("Snellen.fxml") || recurso.endsWith("Ishihara.fxml")
+                || recurso.endsWith("Contraste.fxml") || recurso.endsWith("Amsler.fxml")
+                || recurso.endsWith("CalibracionPosicion.fxml") || recurso.endsWith("PantallaTest.fxml");
+    }
+
     private static Parent envolverConRegreso(Parent root, String recurso, Stage stage) {
         StackPane contenedor = new StackPane(root);
+        // Botones laterales del mouse (atrás / adelante), fuera de las pruebas clínicas
+        // para que un clic accidental no interrumpa una medición.
+        if (!esPantallaClinica(recurso) && !recurso.endsWith("PanelAdministrativo.fxml")
+                && !recurso.endsWith("Splash.fxml") && !recurso.endsWith("Acceso.fxml")) {
+            contenedor.addEventFilter(javafx.scene.input.MouseEvent.MOUSE_PRESSED, evento -> {
+                if (evento.getButton() == javafx.scene.input.MouseButton.BACK) {
+                    evento.consume();
+                    if (historial.isEmpty()) volverAlPanelAdministrativo(stage); else volver(stage);
+                } else if (evento.getButton() == javafx.scene.input.MouseButton.FORWARD) {
+                    evento.consume();
+                    avanzar(stage);
+                }
+            });
+        }
         if (recurso.endsWith("Splash.fxml") || recurso.endsWith("Acceso.fxml") || recurso.endsWith("PanelAdministrativo.fxml")) return contenedor;
         Button volver = new Button("←");
         Button avanzar = new Button("→");

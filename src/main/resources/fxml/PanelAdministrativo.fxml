@@ -2,12 +2,14 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Tooltip?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-<BorderPane stylesheets="@../css/estilos.css" styleClass="app-root" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorPanelAdministrativo">
+<BorderPane fx:id="raizPanel" stylesheets="@../css/estilos.css" styleClass="app-root" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorPanelAdministrativo">
     <left><VBox prefWidth="230" styleClass="sidebar"><children>
         <VBox spacing="4" styleClass="marca-panel"><children><Label text="◉  EYESOFTER" styleClass="marca-panel-titulo"/><Label text="TAMIZAJE VISUAL LOCAL" styleClass="marca-panel-subtitulo"/></children><padding><Insets top="28" right="22" bottom="22" left="22"/></padding></VBox>
         <VBox spacing="5" VBox.vgrow="ALWAYS" styleClass="menu-panel"><children>
@@ -21,6 +23,6 @@
         <Button text="⏻   Cerrar sesión" onAction="#cerrarSesion" styleClass="boton-salir"><VBox.margin><Insets top="8" right="12" bottom="8" left="12"/></VBox.margin></Button>
         <Button text="■   Salir de la aplicación" onAction="#salirAplicacion" styleClass="boton-salir"><VBox.margin><Insets top="0" right="12" bottom="22" left="12"/></VBox.margin></Button>
     </children></VBox></left>
-    <top><HBox alignment="CENTER_LEFT" spacing="16" styleClass="barra-panel"><children><VBox><Label text="Panel de control" styleClass="titulo-barra-panel"/><Label text="Datos clínicos almacenados localmente" styleClass="subtitulo-barra-panel"/></VBox><Region HBox.hgrow="ALWAYS"/><Label text="EO" styleClass="avatar-panel"/><Label text="Operador local" styleClass="usuario-panel"/></children><padding><Insets top="14" right="30" bottom="14" left="30"/></padding></HBox></top>
-    <center><StackPane fx:id="contenido"/></center>
+    <top><HBox alignment="CENTER_LEFT" spacing="16" styleClass="barra-panel"><children><HBox spacing="6" alignment="CENTER_LEFT"><children><Button fx:id="btnAtras" text="←" onAction="#atras" styleClass="boton-nav-panel"><tooltip><Tooltip text="Atrás (Alt+←, botón atrás del mouse, Esc)"/></tooltip></Button><Button fx:id="btnAdelante" text="→" onAction="#adelante" styleClass="boton-nav-panel"><tooltip><Tooltip text="Adelante (Alt+→, botón adelante del mouse)"/></tooltip></Button><Button fx:id="btnRecargar" text="⟳" onAction="#recargar" styleClass="boton-nav-panel"><tooltip><Tooltip text="Actualizar esta sección (F5)"/></tooltip></Button></children></HBox><VBox><Label text="Panel de control" styleClass="titulo-barra-panel"/><Label text="Datos clínicos almacenados localmente" styleClass="subtitulo-barra-panel"/></VBox><Region HBox.hgrow="ALWAYS"/><Label text="EO" styleClass="avatar-panel"/><Label text="Operador local" styleClass="usuario-panel"/></children><padding><Insets top="14" right="30" bottom="14" left="30"/></padding></HBox></top>
+    <center><ScrollPane fx:id="scrollContenido" fitToWidth="true" fitToHeight="true" styleClass="scroll-transparente"><content><StackPane fx:id="contenido"/></content></ScrollPane></center>
 </BorderPane>

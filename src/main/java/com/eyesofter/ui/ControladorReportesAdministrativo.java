@@ -42,8 +42,7 @@ public class ControladorReportesAdministrativo implements VistaAdministrativa {
         colIshihara.setCellValueFactory(c -> texto(valor(c.getValue().resultadoIshihara)));
         colResultado.setCellValueFactory(c -> texto(valor(c.getValue().recomendacion)));
         cargar();
-        Timeline actualizacion = new Timeline(new KeyFrame(javafx.util.Duration.seconds(2), e -> cargar()));
-        actualizacion.setCycleCount(Timeline.INDEFINITE); actualizacion.play();
+        ActualizacionPeriodica.mientrasVisible(tabla, javafx.util.Duration.seconds(2), this::cargar);
     }
     private void aplicarPeriodo() {
         LocalDate hoy = LocalDate.now();

@@ -62,9 +62,7 @@ public class ControladorPacientesAdministrativo implements VistaAdministrativa {
         });
 
         cargar();
-        Timeline actualizacion = new Timeline(new KeyFrame(javafx.util.Duration.seconds(4), e -> cargar()));
-        actualizacion.setCycleCount(Timeline.INDEFINITE);
-        actualizacion.play();
+        ActualizacionPeriodica.mientrasVisible(tablaPacientes, javafx.util.Duration.seconds(4), this::cargar);
     }
 
     private SimpleStringProperty propiedad(String valor) {

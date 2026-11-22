@@ -103,7 +103,7 @@ try {
         $ultimaModificacion = $fuenteTarget.LastWriteTime
     }
 
-    $requiereActualizacion = -not (Test-Path -LiteralPath $app) -or -not (Test-Path -LiteralPath $marca) -or ($ultimaModificacion -gt (Get-Item -LiteralPath $marca).LastWriteTime)
+    $requiereActualizacion = -not (Test-Path -LiteralPath $app) -or -not (Test-Path -LiteralPath (Join-Path $raiz 'release\EYESOFTER\javafx')) -or -not (Test-Path -LiteralPath $marca) -or ($ultimaModificacion -gt (Get-Item -LiteralPath $marca).LastWriteTime)
 
     if ($requiereActualizacion) {
         # --- REQUISITOS: Java, Maven y modelo de voz ---
@@ -162,7 +162,36 @@ try {
     Start-Sleep -Milliseconds 350
     MostrarEstado 'Iniciando EYESOFTER…'
 
-    Start-Process -FilePath $app -WorkingDirectory (Split-Path -Parent $app)
+    # Windows (Control inteligente de aplicaciones / Smart App Control) bloquea EYESOFTER.exe
+    # porque es un ejecutable recién compilado y sin firma digital. Por eso se arranca con
+    # javaw.exe del JDK instalado (firmado por Microsoft) y solo si eso no es posible se usa el .exe.
+    . (Join-Path $PSScriptRoot 'Herramientas.ps1')
+    $carpetaApp = Split-Path -Parent $app
+    $jdkLocal = Get-EyesofterJdk
+    $javaw = if ($jdkLocal) { Join-Path $jdkLocal 'bin\javaw.exe' } else { $null }
+    $modulosFx = Join-Path $carpetaApp 'javafx'
+    $iniciado = $false
+    if ($javaw -and (Test-Path -LiteralPath $javaw) -and (Test-Path -LiteralPath $modulosFx)) {
+        try {
+            $argumentos = @(
+                '--module-path', "`"$modulosFx`"",
+                '--add-modules', 'javafx.controls,javafx.fxml',
+                '-Dfile.encoding=UTF-8',
+                '-cp', "`"$(Join-Path $carpetaApp 'app\*')`"",
+                'com.eyesofter.MainApp')
+            Start-Process -FilePath $javaw -WorkingDirectory $carpetaApp -ArgumentList $argumentos
+            $iniciado = $true
+        } catch { $iniciado = $false }
+    }
+    if (-not $iniciado) {
+        try {
+            Start-Process -FilePath $app -WorkingDirectory $carpetaApp
+        } catch {
+            throw ("Windows bloqueó EYESOFTER.exe (Control inteligente de aplicaciones).`n`n" +
+                   "Ejecute INSTALAR_REQUISITOS.bat para instalar Java y vuelva a intentarlo, o desactive el Control " +
+                   "inteligente de aplicaciones en Seguridad de Windows.`n`nDetalle: " + $_.Exception.Message)
+        }
+    }
 
     $ventana.Close()
     $ventana.Dispose()
