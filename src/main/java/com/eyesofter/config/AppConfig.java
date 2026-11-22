@@ -106,7 +106,7 @@ public class AppConfig {
 
     // Conexión con EYESOFTER Suite (servidor de la app móvil y del portal web)
     /** Dirección base del servidor de EYESOFTER Suite. */
-    public static String URL_API_SUITE = "https://eyesofterandroid-production.up.railway.app";
+    public static String URL_API_SUITE = "https://eyesofter-api.up.railway.app";
     /**
      * Token de ESTE equipo. Se obtiene al vincularlo: alguien de Dirección o Enfermería inicia
      * sesión en el navegador con su cuenta del portal y lo autoriza. Vacío = equipo sin vincular,
