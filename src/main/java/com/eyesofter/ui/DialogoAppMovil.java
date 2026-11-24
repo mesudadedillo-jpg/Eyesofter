@@ -61,7 +61,7 @@ public final class DialogoAppMovil {
         qr.setImage(imagen);
         StackPane marco = new StackPane(cargando, qr);
         marco.setMinSize(270, 270);
-        marco.setStyle("-fx-background-color: white; -fx-border-color: #d0d7e2; -fx-border-radius: 6; -fx-background-radius: 6;");
+        marco.setStyle("-fx-background-color: white; -fx-border-color: #E2E6EE; -fx-border-radius: 6; -fx-background-radius: 6;");
 
         Label direccion = new Label(pagina);
         direccion.setWrapText(true);

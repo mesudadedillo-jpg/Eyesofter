@@ -35,14 +35,28 @@ public class MainApp extends Application {
             System.err.println("[UI] No se pudo cargar el logo principal.");
         }
 
+        cargarFuentes();
+
         // --- MODO KIOSCO: 100% Full Screen, Indecorado e Inminimizable ---
         primaryStage.initStyle(javafx.stage.StageStyle.UNDECORATED); // Elimina la barra de Windows (minimizar, maximizar, cerrar)
         primaryStage.setAlwaysOnTop(true); // Auto-impuesto: Siempre por encima de otras aplicaciones
         primaryStage.setFullScreen(true); // Ocupa el 100% de la pantalla
         primaryStage.setFullScreenExitHint(""); // Oculta el mensaje molesto de "Presione ESC para salir"
+        primaryStage.setFullScreenExitKeyCombination(javafx.scene.input.KeyCombination.NO_MATCH); // Esc no saca de pantalla completa
 
         // Llamamos a tu ControladorSplash para que use esta ventana configurada
         ControladorSplash.mostrarVentana(primaryStage);
+    }
+
+    /** Montserrat, la letra de títulos y botones de la app móvil y el portal (licencia OFL). */
+    private static void cargarFuentes() {
+        for (String f : new String[]{"medium", "semibold", "bold", "extrabold"}) {
+            try (var in = MainApp.class.getResourceAsStream("/fonts/montserrat_" + f + ".ttf")) {
+                if (in != null) javafx.scene.text.Font.loadFont(in, 14);
+            } catch (Exception e) {
+                System.err.println("[UI] No se pudo cargar Montserrat " + f + ": " + e.getMessage());
+            }
+        }
     }
 
     private void configurarDirectorioPersistencia() {
