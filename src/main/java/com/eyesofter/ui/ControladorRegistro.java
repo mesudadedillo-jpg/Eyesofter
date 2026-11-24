@@ -39,6 +39,7 @@ public class ControladorRegistro {
     @FXML private TextField txtMatricula;
     @FXML private javafx.scene.control.CheckBox chkConsentimiento;
     @FXML private ComboBox<SesionEvaluacion.ModoEvaluacion> cmbModoEvaluacion;
+    @FXML private Label lblSeguimientoPortal;
 
     public static void mostrarVentana(Stage stage) {
 
@@ -112,6 +113,52 @@ public class ControladorRegistro {
                 }
             }
         });
+
+        // Jornada escolar en curso: al volver al registro se ofrece de inmediato al siguiente alumno del grupo.
+        if (DialogoJornadaGrupo.hayJornadaEnCurso()) javafx.application.Platform.runLater(this::elegirDelGrupo);
+    }
+
+    /** Jornada en la escuela: elegir al alumno de la lista de su grupo y llenar todo el registro. */
+    @FXML private void elegirDelGrupo() {
+        DialogoJornadaGrupo.elegir(stagePrincipal).ifPresent(this::llenarDesdePortal);
+    }
+
+    /**
+     * Llena el registro con lo que ya está en la Suite (alumno y tutor) para no capturarlo dos
+     * veces. El portal no guarda CURP: si no se capturó, se usa la matrícula como folio.
+     */
+    private void llenarDesdePortal(com.eyesofter.sincronizacion.ClienteSuite.AlumnoPortal a) {
+        String folio = txtCurpAlumno.getText().trim();
+        if (folio.isEmpty()) {
+            GestorBaseDatos.PacienteInfo previo = buscarPorMatricula(a.matricula());
+            folio = previo != null ? previo.curp : a.matricula();
+            txtCurpAlumno.setText(folio);
+        }
+        txtMatricula.setText(a.matricula());
+        txtNombreAlumno.setText(a.nombreCompleto());
+        txtGradoGrupo.setText(a.gradoGrupo());
+        try { dpFechaNacimiento.setValue(a.fechaNacimiento().isBlank() ? null : LocalDate.parse(a.fechaNacimiento().substring(0, 10))); }
+        catch (Exception ex) { dpFechaNacimiento.setValue(null); }
+        actualizarEdadDesdeFecha();
+        if (!a.tutorNombre().isBlank() && !esMayorEdad()) {
+            if (txtCurpTutor.getText().isBlank()) txtCurpTutor.setText("PORTAL-" + a.matricula());
+            txtNombreTutor.setText(a.tutorNombre());
+            txtTelefonoTutor.setText(a.tutorTelefono());
+            txtCorreoTutor.setText(a.tutorCorreo());
+        }
+        StringBuilder aviso = new StringBuilder("Datos tomados del portal. ").append(a.estadoSeguimiento()).append('.');
+        if (a.usaLentes()) aviso.append(" Usa lentes: que haga la prueba con ellos puestos.");
+        if (a.pendienteEspecialista()) aviso.append(" Recuerde a la familia acudir con el especialista; el resultado de hoy se agrega a su caso.");
+        lblSeguimientoPortal.setText(aviso.toString());
+        lblSeguimientoPortal.setVisible(true);
+        lblSeguimientoPortal.setManaged(true);
+    }
+
+    private static GestorBaseDatos.PacienteInfo buscarPorMatricula(String matricula) {
+        for (GestorBaseDatos.PacienteInfo p : GestorBaseDatos.obtenerPacientes("")) {
+            if (matricula.equalsIgnoreCase(com.eyesofter.sincronizacion.ColaSincronizacion.obtenerMatricula(p.curp))) return p;
+        }
+        return null;
     }
 
     /**
@@ -145,6 +192,7 @@ public class ControladorRegistro {
             GestorBaseDatos.registrarTutor(curpT, nombreT, telT, correoT);
             GestorBaseDatos.registrarPaciente(curpA, nombreA, fechaNacA, gradoA, curpT);
             com.eyesofter.sincronizacion.ColaSincronizacion.guardarMatricula(curpA, txtMatricula.getText());
+            DialogoJornadaGrupo.marcarEvaluado(txtMatricula.getText());
 
             SesionEvaluacion.iniciar(curpA, nombreA, gradoA, fechaNacA);
             // Sin fecha ni CURP válida: se usa la edad escrita a mano (afecta optotipo, DP y criterios).
@@ -165,8 +213,9 @@ public class ControladorRegistro {
     /** Busca al alumno en el portal para tomar su matrícula sin capturarla a mano. */
     @FXML private void buscarMatricula() {
         String curp = txtCurpAlumno.getText().trim();
-        if (curp.isEmpty()) { showAlert("Falta la CURP", "Capture primero la CURP del estudiante."); return; }
-        DialogoMatricula.pedir(stagePrincipal, curp, txtNombreAlumno.getText()).ifPresent(txtMatricula::setText);
+        DialogoMatricula.elegir(stagePrincipal, curp, txtNombreAlumno.getText()).ifPresent(e -> {
+            if (e.alumno != null) llenarDesdePortal(e.alumno); else txtMatricula.setText(e.matricula);
+        });
     }
 
     @FXML private void buscarPorCurp() {

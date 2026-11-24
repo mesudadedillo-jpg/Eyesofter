@@ -22,6 +22,18 @@ Cada computadora debe **vincularse** con la cuenta del portal de alguien de Dire
 3. El escritorio queda vinculado y envía lo pendiente. Al registrar a un alumno captura su **matrícula del portal**
    o búscala con *Buscar matrícula en el portal* (mínimo 3 letras; ya no se puede descargar la lista completa).
 
+### Trabajar en la escuela: jornada por grupo
+
+En **Registro de paciente → Jornada por grupo (lista del portal)** se elige un grupo de la escuela (se ve cuántos
+ya se evaluaron en el ciclo) y luego al alumno que va a pasar. El registro se llena solo con lo que ya está en la
+Suite: nombre, fecha de nacimiento, grado y grupo, matrícula y los datos del tutor; no hay que volver a capturarlos.
+La lista marca a quién ya se evaluó hoy en ese equipo, a quién usa lentes y a quién tiene un **caso pendiente de
+atención con el especialista**, para recordárselo a la familia: el resultado nuevo se agrega a su caso.
+Al terminar una prueba y volver al registro, la lista del mismo grupo se abre sola para seguir con el siguiente.
+*Buscar matrícula en el portal* también llena todo el registro al elegir al alumno.
+
+Como el portal no guarda CURP, si no se captura se usa la matrícula como folio del paciente.
+
 Para retirar el acceso a un equipo: pulsa **Desvincular** en ese equipo, o cambia la contraseña / desactiva en el
 portal la cuenta que lo autorizó (eso lo desvincula al instante desde el servidor).
 
