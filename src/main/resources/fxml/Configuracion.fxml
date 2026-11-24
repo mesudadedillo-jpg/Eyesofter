@@ -31,19 +31,19 @@
                 <Label text="Configuración del entorno" styleClass="etiqueta-titulo" style="-fx-font-size: 38px;" />
 
                 <!-- Datos del Paciente (Se actualizará desde Java) -->
-                <Label fx:id="lblAlumno" text="Paciente: [Nombre]" style="-fx-text-fill: #164E59; -fx-font-size: 22px; -fx-font-weight: 700;" />
+                <Label fx:id="lblAlumno" text="Paciente: [Nombre]" style="-fx-text-fill: #0A1A3F; -fx-font-size: 22px; -fx-font-weight: 700;" />
 
                 <Separator />
 
                 <!-- Configuración de Distancia (Slider) -->
-                <Label text="Distancia de evaluación (metros)" styleClass="etiqueta-instruccion" style="-fx-font-size: 22px; -fx-text-fill: #073B4C;" />
+                <Label text="Distancia de evaluación (metros)" styleClass="etiqueta-instruccion" style="-fx-font-size: 22px; -fx-text-fill: #0A1A3F;" />
                 <Slider fx:id="sliderDistancia" max="4.0" min="0.5" value="1.0" majorTickUnit="0.5" minorTickCount="0" showTickLabels="true" showTickMarks="true" snapToTicks="true" maxWidth="500"/>
-                <Label fx:id="lblValorDistancia" text="Distancia seleccionada: 1.0 metros" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #118AB2;" />
+                <Label fx:id="lblValorDistancia" text="Distancia seleccionada: 1.0 metros" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #0B47A8;" />
 
                 <Separator />
 
                 <!-- Configuración de Pantalla (PPI) -->
-                <Label text="Densidad de pantalla (PPI)" styleClass="etiqueta-instruccion" style="-fx-font-size: 22px; -fx-text-fill: #073B4C;" />
+                <Label text="Densidad de pantalla (PPI)" styleClass="etiqueta-instruccion" style="-fx-font-size: 22px; -fx-text-fill: #0A1A3F;" />
                 <HBox alignment="CENTER" spacing="10">
                     <TextField fx:id="txtPPI" promptText="Ej. 96, 120" styleClass="campo-texto" maxWidth="160" alignment="CENTER">
                         <tooltip>
@@ -64,7 +64,7 @@
                 <!-- Datos del paciente que ajustan la prueba (solo con paciente) -->
                 <VBox fx:id="panelPaciente" alignment="CENTER" spacing="12">
                     <children>
-                        <Label text="Tipo de optotipo" styleClass="etiqueta-instruccion" style="-fx-font-size: 20px; -fx-text-fill: #073B4C;" />
+                        <Label text="Tipo de optotipo" styleClass="etiqueta-instruccion" style="-fx-font-size: 20px; -fx-text-fill: #0A1A3F;" />
                         <ComboBox fx:id="cmbOptotipo" maxWidth="520" />
                         <Label fx:id="lblSugerenciaOptotipo" text="" minHeight="-Infinity" styleClass="etiqueta-subtitulo" wrapText="true" textAlignment="CENTER" maxWidth="600" />
                         <HBox alignment="CENTER" spacing="10">

@@ -71,7 +71,7 @@ public class ControladorPantallaTest {
 
         // MODIFICACIÓN 1: Fondo general y Tarjeta centrada (Dashboard Clínico)
         StackPane fondoPantalla = new StackPane();
-        fondoPantalla.setStyle("-fx-background-color: #F4F7F6;");
+        fondoPantalla.setStyle("-fx-background-color: #F6F8FC;");
 
         VBox tarjeta = new VBox(25); // Mayor espaciado para mejor legibilidad
         tarjeta.setAlignment(Pos.CENTER);
@@ -84,7 +84,7 @@ public class ControladorPantallaTest {
         lblTitulo.getStyleClass().add("etiqueta-titulo");
 
         Label lblSubtitulo = new Label("Paciente: " + nombrePaciente);
-        lblSubtitulo.setStyle("-fx-font-size: 24px; -fx-text-fill: #555555; -fx-font-weight: bold;");
+        lblSubtitulo.setStyle("-fx-font-size: 24px; -fx-text-fill: #545F79; -fx-font-weight: bold;");
 
         lblInstruccion = new Label("Colócate frente al monitor a la distancia indicada.");
         lblInstruccion.getStyleClass().add("etiqueta-instruccion");
@@ -178,7 +178,7 @@ public class ControladorPantallaTest {
         rootPantalla.setStyle("-fx-background-color: #FFFFFF;"); // Blanco puro para alto contraste
 
         Label lblIndicacionTest = new Label("Menciona en voz alta la letra que visualizas:");
-        lblIndicacionTest.setStyle("-fx-font-size: 28px; -fx-text-fill: #7f8c8d;");
+        lblIndicacionTest.setStyle("-fx-font-size: 28px; -fx-text-fill: #545F79;");
 
         lblOptotipo = new Label("E");
         lblOptotipo.setStyle("-fx-font-size: 150px; -fx-font-weight: bold; -fx-text-fill: black;");
@@ -256,7 +256,7 @@ public class ControladorPantallaTest {
 
             // MODIFICACIÓN 6: Pantalla de finalización con el estilo de la tarjeta
             StackPane fondoFin = new StackPane();
-            fondoFin.setStyle("-fx-background-color: #F4F7F6;");
+            fondoFin.setStyle("-fx-background-color: #F6F8FC;");
 
             VBox rootFin = new VBox(20);
             rootFin.setAlignment(Pos.CENTER);

@@ -17,7 +17,7 @@
 
                 <!-- Nombre del alumno (se actualiza desde Java) -->
                 <!-- Le ponemos un naranja vibrante solo a su nombre para que resalte -->
-                <Label fx:id="lblNombreAlumno" text="[Paciente]" styleClass="etiqueta-titulo" style="-fx-font-size: 38px; -fx-text-fill: #164E59;" />
+                <Label fx:id="lblNombreAlumno" text="[Paciente]" styleClass="etiqueta-titulo" style="-fx-font-size: 38px; -fx-text-fill: #0A1A3F;" />
 
                 <!-- Instrucción 1 -->
                 <Label text="Realizaremos un tamizaje visual breve y supervisado." styleClass="etiqueta-instruccion">
@@ -28,7 +28,7 @@
 
                 <!-- Instrucción 2 -->
                 <!-- Le ponemos bold y azul para que sepa exactamente qué tiene que hacer -->
-                <Label fx:id="lblInstruccion" text="Cuando esté listo, diga &quot;SÍ&quot; para comenzar." styleClass="etiqueta-instruccion" style="-fx-font-weight: 900; -fx-text-fill: #118AB2;">
+                <Label fx:id="lblInstruccion" text="Cuando esté listo, diga &quot;SÍ&quot; para comenzar." styleClass="etiqueta-instruccion" style="-fx-font-weight: 900; -fx-text-fill: #0B47A8;">
                     <VBox.margin>
                         <Insets top="20.0" bottom="30.0" />
                     </VBox.margin>

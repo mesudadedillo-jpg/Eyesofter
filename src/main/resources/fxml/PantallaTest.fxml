@@ -17,7 +17,7 @@
 -->
 <BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1">
     <center>
-        <StackPane style="-fx-background-color: #F4F7F6;">
+        <StackPane style="-fx-background-color: #F6F8FC;">
             <children>
                 <VBox alignment="CENTER" maxWidth="800" spacing="22" styleClass="contenedor-principal">
                     <padding><Insets top="48" right="52" bottom="48" left="52" /></padding>
