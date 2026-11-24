@@ -37,10 +37,36 @@ public final class ClienteSuite {
         }
     }
 
-    /** Alumno del portal (para elegir la matrícula). */
-    public record AlumnoPortal(String matricula, String nombre, String apellidos, String nivel, String grado, String grupo) {
+    /**
+     * Alumno del portal: con esto el registro se llena solo (alumno y tutor) y se sabe cómo va
+     * su seguimiento. Los campos que un servidor anterior no envíe llegan vacíos.
+     */
+    public record AlumnoPortal(String matricula, String nombre, String apellidos, String nivel, String grado, String grupo,
+                               String fechaNacimiento, boolean usaLentes,
+                               String tutorNombre, String tutorTelefono, String tutorCorreo, String tutorParentesco,
+                               String ultimoTamizaje, String ultimoSemaforo, String casoAbierto) {
+        public AlumnoPortal(String matricula, String nombre, String apellidos, String nivel, String grado, String grupo) {
+            this(matricula, nombre, apellidos, nivel, grado, grupo, "", false, "", "", "", "", "", "", "");
+        }
+        public String nombreCompleto() { return (nombre + " " + apellidos).trim(); }
+        public String gradoGrupo() { return grado + "° " + grupo + (nivel == null || nivel.isBlank() ? "" : " - " + nivel); }
+        /** Tiene un caso abierto: aún no lo atiende un especialista. */
+        public boolean pendienteEspecialista() { return casoAbierto != null && !casoAbierto.isBlank(); }
+        /** Resumen corto de su seguimiento para mostrarlo en listas. */
+        public String estadoSeguimiento() {
+            if (pendienteEspecialista()) return "Pendiente de atención con especialista" + (ultimoSemaforo.isBlank() ? "" : " (" + ultimoSemaforo.toLowerCase() + ")");
+            if (!ultimoTamizaje.isBlank()) return "Último tamizaje " + ultimoTamizaje + (ultimoSemaforo.isBlank() ? "" : " · " + ultimoSemaforo.toLowerCase());
+            return "Sin tamizaje";
+        }
         @Override public String toString() {
             return matricula + " · " + nombre + " " + apellidos + " · " + grado + "° " + grupo + " " + (nivel == null ? "" : nivel.toLowerCase());
+        }
+    }
+
+    /** Grupo de la escuela y avance del ciclo escolar (cuántos ya tienen tamizaje). */
+    public record GrupoPortal(String nivel, int grado, String grupo, int alumnos, int evaluados) {
+        @Override public String toString() {
+            return grado + "° " + grupo + " · " + nivel + "   (" + evaluados + " de " + alumnos + " evaluados)";
         }
     }
 
@@ -177,15 +203,58 @@ public final class ClienteSuite {
         Respuesta r = enviar(peticion("/api/escritorio/alumnos?q=" + q).GET());
         if (!r.exito()) throw new IllegalStateException(equipoNoVinculado(r)
                 ? "Este equipo no está vinculado. Vincúlelo en Configuración → Conexión con EYESOFTER Suite." : r.mensajeError());
-        List<AlumnoPortal> lista = new ArrayList<>();
-        JsonElement raiz = JsonParser.parseString(r.cuerpo());
-        JsonArray arreglo = raiz.isJsonArray() ? raiz.getAsJsonArray() : new JsonArray();
-        for (JsonElement e : arreglo) {
-            JsonObject a = e.getAsJsonObject();
-            lista.add(new AlumnoPortal(texto(a, "matricula"), texto(a, "nombre"), texto(a, "apellidos"),
-                    texto(a, "nivel"), texto(a, "grado"), texto(a, "grupo")));
+        return alumnosDe(r);
+    }
+
+    /** {@code GET /api/escritorio/grupos}: grupos de la escuela del equipo, con su avance. */
+    public static List<GrupoPortal> grupos() throws IllegalStateException {
+        Respuesta r = enviar(peticion("/api/escritorio/grupos").GET());
+        if (!r.exito()) throw new IllegalStateException(errorConsulta(r));
+        List<GrupoPortal> lista = new ArrayList<>();
+        for (JsonElement e : arreglo(r)) {
+            JsonObject g = e.getAsJsonObject();
+            lista.add(new GrupoPortal(texto(g, "nivel"), entero(g, "grado"), texto(g, "grupo"), entero(g, "alumnos"), entero(g, "evaluados")));
         }
         return lista;
+    }
+
+    /** {@code GET /api/escritorio/grupo}: lista de un grupo para la jornada de tamizaje. */
+    public static List<AlumnoPortal> alumnosDelGrupo(GrupoPortal g) throws IllegalStateException {
+        String ruta = "/api/escritorio/grupo?nivel=" + URLEncoder.encode(g.nivel(), StandardCharsets.UTF_8)
+                + "&grado=" + g.grado() + "&grupo=" + URLEncoder.encode(g.grupo(), StandardCharsets.UTF_8);
+        Respuesta r = enviar(peticion(ruta).GET());
+        if (!r.exito()) throw new IllegalStateException(errorConsulta(r));
+        return alumnosDe(r);
+    }
+
+    private static String errorConsulta(Respuesta r) {
+        if (equipoNoVinculado(r)) return "Este equipo no está vinculado. Vincúlelo en Configuración → Conexión con EYESOFTER Suite.";
+        if (r.codigo() == 404) return "El servidor de la Suite aún no tiene esta función. Pida que lo actualicen.";
+        return r.mensajeError();
+    }
+
+    private static JsonArray arreglo(Respuesta r) {
+        try {
+            JsonElement raiz = JsonParser.parseString(r.cuerpo());
+            return raiz.isJsonArray() ? raiz.getAsJsonArray() : new JsonArray();
+        } catch (Exception e) { return new JsonArray(); }
+    }
+
+    static List<AlumnoPortal> alumnosDe(Respuesta r) {
+        List<AlumnoPortal> lista = new ArrayList<>();
+        for (JsonElement e : arreglo(r)) {
+            JsonObject a = e.getAsJsonObject();
+            lista.add(new AlumnoPortal(texto(a, "matricula"), texto(a, "nombre"), texto(a, "apellidos"),
+                    texto(a, "nivel"), texto(a, "grado"), texto(a, "grupo"), texto(a, "fechaNacimiento"),
+                    a.has("usaLentes") && !a.get("usaLentes").isJsonNull() && a.get("usaLentes").getAsBoolean(),
+                    texto(a, "tutorNombre"), texto(a, "tutorTelefono"), texto(a, "tutorCorreo"), texto(a, "tutorParentesco"),
+                    texto(a, "ultimoTamizaje"), texto(a, "ultimoSemaforo"), texto(a, "casoAbierto")));
+        }
+        return lista;
+    }
+
+    private static int entero(JsonObject o, String campo) {
+        try { return o.has(campo) && !o.get(campo).isJsonNull() ? o.get(campo).getAsInt() : 0; } catch (Exception e) { return 0; }
     }
 
     private static String texto(JsonObject o, String campo) {

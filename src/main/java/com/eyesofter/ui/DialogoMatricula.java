@@ -26,6 +26,18 @@ public final class DialogoMatricula {
     private DialogoMatricula() { }
 
     public static Optional<String> pedir(Window propietario, String curp, String nombre) {
+        return elegir(propietario, curp, nombre).map(e -> e.matricula);
+    }
+
+    /** Resultado: la matrícula escrita y, si se eligió de la búsqueda, el alumno del portal completo. */
+    public static final class Eleccion {
+        public final String matricula;
+        public final ClienteSuite.AlumnoPortal alumno;
+        Eleccion(String matricula, ClienteSuite.AlumnoPortal alumno) { this.matricula = matricula; this.alumno = alumno; }
+    }
+
+    /** Como {@link #pedir}, pero devuelve también los datos del alumno elegido para llenar el registro. */
+    public static Optional<Eleccion> elegir(Window propietario, String curp, String nombre) {
         Dialog<ButtonType> dialogo = new Dialog<>();
         if (propietario != null) dialogo.initOwner(propietario);
         dialogo.setTitle("Matrícula del portal");
@@ -65,7 +77,8 @@ public final class DialogoMatricula {
             t.setDaemon(true);
             t.start();
         });
-        resultados.getSelectionModel().selectedItemProperty().addListener((o, a, b) -> { if (b != null) matricula.setText(b.matricula()); });
+        ClienteSuite.AlumnoPortal[] elegido = new ClienteSuite.AlumnoPortal[1];
+        resultados.getSelectionModel().selectedItemProperty().addListener((o, a, b) -> { if (b != null) { matricula.setText(b.matricula()); elegido[0] = b; } });
 
         VBox contenido = new VBox(10,
                 new Label("Matrícula"), matricula,
@@ -76,7 +89,8 @@ public final class DialogoMatricula {
         Optional<ButtonType> r = dialogo.showAndWait();
         if (r.isEmpty() || r.get() != ButtonType.OK) return Optional.empty();
         String valor = matricula.getText() == null ? "" : matricula.getText().trim();
-        ColaSincronizacion.guardarMatricula(curp, valor);
-        return Optional.of(valor);
+        if (curp != null && !curp.isBlank()) ColaSincronizacion.guardarMatricula(curp, valor);
+        ClienteSuite.AlumnoPortal alumno = elegido[0] != null && elegido[0].matricula().equalsIgnoreCase(valor) ? elegido[0] : null;
+        return Optional.of(new Eleccion(valor, alumno));
     }
 }

@@ -22,12 +22,39 @@ Cada computadora debe **vincularse** con la cuenta del portal de alguien de Dire
 3. El escritorio queda vinculado y envía lo pendiente. Al registrar a un alumno captura su **matrícula del portal**
    o búscala con *Buscar matrícula en el portal* (mínimo 3 letras; ya no se puede descargar la lista completa).
 
+### Trabajar en la escuela: jornada por grupo
+
+En **Registro de paciente → Jornada por grupo (lista del portal)** se elige un grupo de la escuela (se ve cuántos
+ya se evaluaron en el ciclo) y luego al alumno que va a pasar. El registro se llena solo con lo que ya está en la
+Suite: nombre, fecha de nacimiento, grado y grupo, matrícula y los datos del tutor; no hay que volver a capturarlos.
+La lista marca a quién ya se evaluó hoy en ese equipo, a quién usa lentes y a quién tiene un **caso pendiente de
+atención con el especialista**, para recordárselo a la familia: el resultado nuevo se agrega a su caso.
+Al terminar una prueba y volver al registro, la lista del mismo grupo se abre sola para seguir con el siguiente.
+*Buscar matrícula en el portal* también llena todo el registro al elegir al alumno.
+
+Como el portal no guarda CURP, si no se captura se usa la matrícula como folio del paciente.
+
 Para retirar el acceso a un equipo: pulsa **Desvincular** en ese equipo, o cambia la contraseña / desactiva en el
 portal la cuenta que lo autorizó (eso lo desvincula al instante desde el servidor).
 
 Si no hay internet, los envíos quedan en una cola local y se reintentan solos (30 s, 1 min, 2 min… hasta
 30 min). Si la falla dura más de 30 minutos, Enfermería recibe una alerta. La tabla *Envíos al portal*
 muestra lo enviado, lo pendiente y lo que necesita corrección (por ejemplo, una matrícula que no existe).
+
+## Grupos escolares y pasar de año
+
+En **Panel de control → Grupos** se registra cada grupo (nivel, grado, letra, ciclo escolar y docente) y se
+inscriben sus pacientes (*Inscribir pacientes*, o al dar de alta / editar un paciente). El grado de un paciente con
+grupo lo pone el grupo: `3° B - Primaria`, el mismo formato del portal, así que un alumno que llega de la *jornada
+por grupo* se inscribe solo si ya existe ese grupo en el equipo.
+
+Al cerrar el ciclo escolar:
+- **Pasar de año** (un grupo) o **Pasar de año a todos** (se confirma escribiendo `PASAR DE AÑO`): cada grupo sube
+  un grado con todos sus pacientes y avanza el ciclo. Se procesa del grado más alto al más bajo y es todo o nada.
+- 3° de preescolar, 6° de primaria y 3° de secundaria **egresan**: el grupo se cierra (pestaña *Egresados*) y sus
+  pacientes quedan marcados como egresados, con su historial completo.
+- Un grupo no puede pasar de año dos veces en menos de 180 días (evita repetirlo por error); para corregir un
+  grado, edite el grupo.
 
 ## Seguridad de las cuentas locales
 

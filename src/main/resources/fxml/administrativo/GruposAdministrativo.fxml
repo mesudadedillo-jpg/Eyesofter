@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<VBox spacing="18" styleClass="pagina-admin" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.eyesofter.ui.ControladorGruposAdministrativo"><padding><Insets top="28" right="32" bottom="32" left="32"/></padding><children>
+    <HBox alignment="CENTER_LEFT" spacing="10"><children>
+        <VBox spacing="4"><children><Label text="Grupos escolares" styleClass="titulo-admin"/><Label text="Registre cada grupo e inscriba a sus pacientes. Al cerrar el ciclo, el grupo pasa de año con todos ellos." styleClass="subtitulo-admin" wrapText="true"/></children></VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnPasarTodos" text="⇪ Pasar de año a todos" onAction="#pasarTodos" styleClass="boton-secundario"/>
+        <Button text="+ Nuevo grupo" onAction="#nuevoGrupo" styleClass="boton-primario"/>
+    </children></HBox>
+    <HBox spacing="8" alignment="CENTER_LEFT"><children>
+        <ToggleButton fx:id="tglActivos" text="Activos" selected="true" onAction="#verActivos" styleClass="boton-secundario"/>
+        <ToggleButton fx:id="tglEgresados" text="Egresados" onAction="#verEgresados" styleClass="boton-secundario"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="lblSinGrupo" styleClass="subtitulo-admin"/>
+    </children></HBox>
+    <HBox spacing="18" VBox.vgrow="ALWAYS"><children>
+        <VBox spacing="12" styleClass="tarjeta-admin" HBox.hgrow="ALWAYS" prefWidth="420"><children>
+            <Label text="Grupos" styleClass="subtitulo-seccion"/>
+            <TableView fx:id="tablaGrupos" VBox.vgrow="ALWAYS"><columns>
+                <TableColumn fx:id="colGrupo" text="GRUPO" prefWidth="160"/>
+                <TableColumn fx:id="colCiclo" text="CICLO" prefWidth="100"/>
+                <TableColumn fx:id="colDocente" text="DOCENTE" prefWidth="150"/>
+                <TableColumn fx:id="colPacientes" text="PACIENTES" prefWidth="90"/>
+            </columns></TableView>
+        </children></VBox>
+        <VBox spacing="12" styleClass="tarjeta-admin" HBox.hgrow="ALWAYS" prefWidth="560"><children>
+            <HBox alignment="CENTER_LEFT" spacing="8"><children>
+                <VBox spacing="2"><children><Label fx:id="lblGrupo" text="Elija un grupo" styleClass="subtitulo-seccion"/><Label fx:id="lblDetalle" styleClass="subtitulo-admin" wrapText="true"/></children></VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+            </children></HBox>
+            <HBox spacing="8"><children>
+                <Button fx:id="btnInscribir" text="+ Inscribir pacientes" onAction="#inscribir" styleClass="boton-primario"/>
+                <Button fx:id="btnPasar" text="⇪ Pasar de año" onAction="#pasarGrupo" styleClass="boton-secundario"/>
+                <Button fx:id="btnEditar" text="✎ Editar" onAction="#editarGrupo" styleClass="boton-secundario"/>
+                <Button fx:id="btnEliminar" text="🗑 Eliminar" onAction="#eliminarGrupo" styleClass="boton-secundario"/>
+            </children></HBox>
+            <TableView fx:id="tablaPacientes" VBox.vgrow="ALWAYS"><columns>
+                <TableColumn fx:id="colNombre" text="PACIENTE" prefWidth="200"/>
+                <TableColumn fx:id="colCurp" text="CURP" prefWidth="160"/>
+                <TableColumn fx:id="colTutor" text="TUTOR" prefWidth="170"/>
+            </columns></TableView>
+        </children></VBox>
+    </children></HBox>
+</children></VBox>
