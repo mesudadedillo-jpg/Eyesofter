@@ -41,6 +41,21 @@ Si no hay internet, los envíos quedan en una cola local y se reintentan solos (
 30 min). Si la falla dura más de 30 minutos, Enfermería recibe una alerta. La tabla *Envíos al portal*
 muestra lo enviado, lo pendiente y lo que necesita corrección (por ejemplo, una matrícula que no existe).
 
+## Grupos escolares y pasar de año
+
+En **Panel de control → Grupos** se registra cada grupo (nivel, grado, letra, ciclo escolar y docente) y se
+inscriben sus pacientes (*Inscribir pacientes*, o al dar de alta / editar un paciente). El grado de un paciente con
+grupo lo pone el grupo: `3° B - Primaria`, el mismo formato del portal, así que un alumno que llega de la *jornada
+por grupo* se inscribe solo si ya existe ese grupo en el equipo.
+
+Al cerrar el ciclo escolar:
+- **Pasar de año** (un grupo) o **Pasar de año a todos** (se confirma escribiendo `PASAR DE AÑO`): cada grupo sube
+  un grado con todos sus pacientes y avanza el ciclo. Se procesa del grado más alto al más bajo y es todo o nada.
+- 3° de preescolar, 6° de primaria y 3° de secundaria **egresan**: el grupo se cierra (pestaña *Egresados*) y sus
+  pacientes quedan marcados como egresados, con su historial completo.
+- Un grupo no puede pasar de año dos veces en menos de 180 días (evita repetirlo por error); para corregir un
+  grado, edite el grupo.
+
 ## Seguridad de las cuentas locales
 
 Las contraseñas se guardan con hash PBKDF2 (nunca en texto plano), 3 intentos fallidos bloquean la cuenta

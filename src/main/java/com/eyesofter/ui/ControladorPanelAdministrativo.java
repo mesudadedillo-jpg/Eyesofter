@@ -44,7 +44,7 @@ public class ControladorPanelAdministrativo implements ControladorDeVista {
     @FXML private BorderPane raizPanel;
     @FXML private StackPane contenido;
     @FXML private ScrollPane scrollContenido;
-    @FXML private Button btnInicio, btnPacientes, btnHistorial, btnReportes, btnHerramientas, btnConfiguracion;
+    @FXML private Button btnInicio, btnPacientes, btnGrupos, btnHistorial, btnReportes, btnHerramientas, btnConfiguracion;
     @FXML private Button btnAtras, btnAdelante, btnRecargar;
 
     // Componentes para actualizar dinámicamente el usuario en la esquina superior derecha
@@ -88,6 +88,7 @@ public class ControladorPanelAdministrativo implements ControladorDeVista {
     @Override public void setStage(Stage stage) { this.stage = stage; }
     @FXML private void inicio() { cargar("DashboardAdministrativo", btnInicio); }
     @FXML private void pacientes() { cargar("PacientesAdministrativo", btnPacientes); }
+    @FXML private void grupos() { cargar("GruposAdministrativo", btnGrupos); }
     @FXML public void historial() { cargar("HistorialAdministrativo", btnHistorial); }
     @FXML private void reportes() { cargar("ReportesAdministrativo", btnReportes); }
     @FXML private void herramientas() { cargar("HerramientasAdministrativo", btnHerramientas); }
@@ -309,6 +310,7 @@ public class ControladorPanelAdministrativo implements ControladorDeVista {
     private Button botonDe(String vista) {
         return switch (vista) {
             case "PacientesAdministrativo" -> btnPacientes;
+            case "GruposAdministrativo" -> btnGrupos;
             case "HistorialAdministrativo" -> btnHistorial;
             case "ReportesAdministrativo" -> btnReportes;
             case "HerramientasAdministrativo" -> btnHerramientas;
@@ -338,8 +340,8 @@ public class ControladorPanelAdministrativo implements ControladorDeVista {
     }
 
     private void seleccionarMenu(Button botonSeleccionado) {
-        for (Button boton : new Button[] {btnInicio, btnPacientes, btnHistorial, btnReportes, btnHerramientas, btnConfiguracion}) {
-            boton.getStyleClass().remove("boton-menu-activo");
+        for (Button boton : new Button[] {btnInicio, btnPacientes, btnGrupos, btnHistorial, btnReportes, btnHerramientas, btnConfiguracion}) {
+            if (boton != null) boton.getStyleClass().remove("boton-menu-activo");
         }
         if (botonSeleccionado != null) botonSeleccionado.getStyleClass().add("boton-menu-activo");
     }

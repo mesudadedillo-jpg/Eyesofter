@@ -1,6 +1,7 @@
 package com.eyesofter.ui;
 
 import com.eyesofter.db.GestorBaseDatos;
+import com.eyesofter.db.GestorGrupos;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.SimpleStringProperty;
@@ -104,15 +105,20 @@ public class ControladorPacientesAdministrativo implements VistaAdministrativa {
         TextField tutor = new TextField(); tutor.setPromptText("Ej: Luis Alberto Hernández");
         TextField telefono = new TextField(); telefono.setPromptText("Ej: 7751124589");
         TextField correo = new TextField(); correo.setPromptText("Ej: tutor@gmail.com");
+        ComboBox<GestorGrupos.GrupoInfo> grupoEscolar = comboGrupos(null);
+        // Con grupo escolar, el grado y la letra los pone el grupo.
+        grado.disableProperty().bind(conGrupo(grupoEscolar));
+        grupo.disableProperty().bind(conGrupo(grupoEscolar));
 
         GridPane campos = new GridPane(); campos.setHgap(12); campos.setVgap(10);
         campos.addRow(0, new Label("CURP *"), curp);
         campos.addRow(1, new Label("Nombre completo *"), nombre);
-        campos.addRow(2, new Label("Grado"), grado);
-        campos.addRow(3, new Label("Grupo"), grupo);
-        campos.addRow(4, new Label("Nombre de tutor"), tutor);
-        campos.addRow(5, new Label("Teléfono"), telefono);
-        campos.addRow(6, new Label("Correo electrónico"), correo);
+        campos.addRow(2, new Label("Grupo escolar"), grupoEscolar);
+        campos.addRow(3, new Label("Grado"), grado);
+        campos.addRow(4, new Label("Grupo"), grupo);
+        campos.addRow(5, new Label("Nombre de tutor"), tutor);
+        campos.addRow(6, new Label("Teléfono"), telefono);
+        campos.addRow(7, new Label("Correo electrónico"), correo);
         dialogo.getDialogPane().setContent(campos);
 
         ButtonType agregar = new ButtonType("Agregar paciente", ButtonBar.ButtonData.OK_DONE);
@@ -126,6 +132,9 @@ public class ControladorPacientesAdministrativo implements VistaAdministrativa {
                 return;
             }
             boolean guardado = GestorBaseDatos.registrarPacienteRapido(curp.getText(), nombre.getText(), grado.getText(), grupo.getText(), tutor.getText(), telefono.getText(), correo.getText());
+            if (guardado && grupoElegido(grupoEscolar) != null) {
+                GestorGrupos.inscribir(grupoElegido(grupoEscolar).id(), java.util.List.of(curp.getText()));
+            }
             if (guardado) cargar();
             else aviso(Alert.AlertType.ERROR, "Error", "No se pudo registrar al paciente.");
         });
@@ -141,14 +150,17 @@ public class ControladorPacientesAdministrativo implements VistaAdministrativa {
         TextField tutor = new TextField(paciente.nombreTutor == null ? "" : paciente.nombreTutor);
         TextField telefono = new TextField(paciente.telefonoTutor == null ? "" : paciente.telefonoTutor);
         TextField correo = new TextField(paciente.correoTutor == null ? "" : paciente.correoTutor);
+        ComboBox<GestorGrupos.GrupoInfo> grupoEscolar = comboGrupos(paciente.idGrupo);
+        gradoGrupo.disableProperty().bind(conGrupo(grupoEscolar));
 
         GridPane campos = new GridPane(); campos.setHgap(12); campos.setVgap(10);
         campos.addRow(0, new Label("CURP (No editable):"), new Label(paciente.curp));
         campos.addRow(1, new Label("Nombre completo:"), nombre);
-        campos.addRow(2, new Label("Grado y Grupo:"), gradoGrupo);
-        campos.addRow(3, new Label("Nombre Tutor:"), tutor);
-        campos.addRow(4, new Label("Teléfono Tutor:"), telefono);
-        campos.addRow(5, new Label("Correo Tutor:"), correo);
+        campos.addRow(2, new Label("Grupo escolar:"), grupoEscolar);
+        campos.addRow(3, new Label("Grado y Grupo:"), gradoGrupo);
+        campos.addRow(4, new Label("Nombre Tutor:"), tutor);
+        campos.addRow(5, new Label("Teléfono Tutor:"), telefono);
+        campos.addRow(6, new Label("Correo Tutor:"), correo);
         dialogo.getDialogPane().setContent(campos);
 
         ButtonType guardar = new ButtonType("Guardar Cambios", ButtonBar.ButtonData.OK_DONE);
@@ -162,6 +174,13 @@ public class ControladorPacientesAdministrativo implements VistaAdministrativa {
             // Actualizar tutor si se especificó
             if (paciente.curpTutor != null && !paciente.curpTutor.isBlank()) {
                 GestorBaseDatos.actualizarTutor(paciente.curpTutor, tutor.getText(), telefono.getText(), correo.getText());
+            }
+            // Primero el grupo: al quitarlo, el grado capturado se vuelve a guardar tal cual.
+            GestorGrupos.GrupoInfo elegido = grupoElegido(grupoEscolar);
+            Integer nuevoGrupo = elegido == null ? null : elegido.id();
+            if (!java.util.Objects.equals(nuevoGrupo, paciente.idGrupo)) {
+                if (nuevoGrupo == null) GestorGrupos.quitar(paciente.curp);
+                else GestorGrupos.inscribir(nuevoGrupo, java.util.List.of(paciente.curp));
             }
             boolean exito = GestorBaseDatos.actualizarPaciente(paciente.curp, nombre.getText(), paciente.fechaNacimiento, gradoGrupo.getText(), paciente.curpTutor);
             if (exito) {
@@ -206,6 +225,38 @@ public class ControladorPacientesAdministrativo implements VistaAdministrativa {
             return;
         }
         panel.mostrarFicha(paciente);
+    }
+
+    /** Opción "Sin grupo" de las listas (id -1). */
+    private static final GestorGrupos.GrupoInfo SIN_GRUPO = new GestorGrupos.GrupoInfo(-1, "", 0, "", "", null, true, null, 0);
+
+    /** Lista de grupos activos con "Sin grupo" al principio y el grupo actual elegido. */
+    private ComboBox<GestorGrupos.GrupoInfo> comboGrupos(Integer actual) {
+        ComboBox<GestorGrupos.GrupoInfo> combo = new ComboBox<>();
+        combo.getItems().add(SIN_GRUPO);
+        combo.getItems().addAll(GestorGrupos.listar(true));
+        combo.setValue(combo.getItems().stream().filter(g -> actual != null && g.id() == actual).findFirst().orElse(SIN_GRUPO));
+        combo.setMaxWidth(Double.MAX_VALUE);
+        javafx.util.Callback<ListView<GestorGrupos.GrupoInfo>, ListCell<GestorGrupos.GrupoInfo>> celdas = lista -> new ListCell<>() {
+            @Override protected void updateItem(GestorGrupos.GrupoInfo g, boolean vacio) {
+                super.updateItem(g, vacio);
+                setText(vacio || g == null ? null : g.id() < 0 ? "Sin grupo (escribir grado a mano)" : g.toString());
+            }
+        };
+        combo.setCellFactory(celdas);
+        combo.setButtonCell(celdas.call(null));
+        combo.setTooltip(new Tooltip("Con grupo, el grado cambia solo cuando el grupo pasa de año."));
+        return combo;
+    }
+
+    /** true si en la lista hay un grupo real elegido. */
+    private static javafx.beans.binding.BooleanBinding conGrupo(ComboBox<GestorGrupos.GrupoInfo> combo) {
+        return javafx.beans.binding.Bindings.createBooleanBinding(
+                () -> combo.getValue() != null && combo.getValue().id() > 0, combo.valueProperty());
+    }
+
+    private static GestorGrupos.GrupoInfo grupoElegido(ComboBox<GestorGrupos.GrupoInfo> combo) {
+        return combo.getValue() == null || combo.getValue().id() < 0 ? null : combo.getValue();
     }
 
     private void aviso(Alert.AlertType tipo, String titulo, String mensaje) {

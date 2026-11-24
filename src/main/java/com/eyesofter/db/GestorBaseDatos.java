@@ -69,6 +69,9 @@ public class GestorBaseDatos {
                     "curp_tutor TEXT, " +
                     "FOREIGN KEY(curp_tutor) REFERENCES tutor(curp) ON DELETE SET NULL ON UPDATE CASCADE)");
 
+            // Grupos escolares (pasar de año a todo un grupo sin editar paciente por paciente).
+            GestorGrupos.crearEsquema(stmt);
+
             // Tabla Evaluacion Clínica
             stmt.execute("CREATE TABLE IF NOT EXISTS evaluacion (" +
                     "id_evaluacion INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -172,26 +175,52 @@ public class GestorBaseDatos {
 
     public static boolean registrarPaciente(String curp, String nombre, String fechaNacimiento, String gradoGrupo, String curpTutor) {
         if (curp == null || curp.isBlank() || nombre == null || nombre.isBlank()) return false;
+        // Si el paciente ya está en un grupo, su grado lo manda el grupo (no se pisa con lo capturado).
         String sql = "INSERT INTO paciente (curp, nombre, fecha_nacimiento, grado_grupo, curp_tutor) VALUES (?, ?, ?, ?, ?) " +
                 "ON CONFLICT(curp) DO UPDATE SET nombre=excluded.nombre, fecha_nacimiento=excluded.fecha_nacimiento, " +
-                "grado_grupo=excluded.grado_grupo, curp_tutor=excluded.curp_tutor";
+                "grado_grupo=CASE WHEN paciente.id_grupo IS NULL THEN excluded.grado_grupo ELSE paciente.grado_grupo END, " +
+                "curp_tutor=excluded.curp_tutor";
         try (Connection conn = abrirConexion();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, curp.trim().toUpperCase());
+            String curpNorm = curp.trim().toUpperCase();
+            pstmt.setString(1, curpNorm);
             pstmt.setString(2, nombre.trim());
             pstmt.setString(3, fechaNacimiento != null ? fechaNacimiento.trim() : "");
             pstmt.setString(4, gradoGrupo != null ? gradoGrupo.trim() : "");
             pstmt.setString(5, curpTutor != null && !curpTutor.isBlank() ? curpTutor.trim().toUpperCase() : null);
-            return pstmt.executeUpdate() > 0;
+            boolean guardado = pstmt.executeUpdate() > 0;
+            if (guardado) vincularGrupoPorEtiqueta(conn, curpNorm, gradoGrupo);
+            return guardado;
         } catch (Exception e) {
             System.err.println("[DB ERROR]: No se pudo registrar el paciente: " + e.getMessage());
             return false;
         }
     }
 
+    /**
+     * Inscribe automáticamente al paciente sin grupo en el grupo local cuya etiqueta coincide con
+     * su grado (p. ej. "3° B - Primaria", tal como llega del portal en la jornada por grupo).
+     */
+    private static void vincularGrupoPorEtiqueta(Connection conn, String curp, String gradoGrupo) {
+        try {
+            Integer idGrupo = GestorGrupos.buscarActivoPorEtiqueta(conn, gradoGrupo);
+            if (idGrupo == null) return;
+            try (PreparedStatement p = conn.prepareStatement(
+                    "UPDATE paciente SET id_grupo = ? WHERE curp = ? AND id_grupo IS NULL AND COALESCE(egresado, 0) = 0")) {
+                p.setInt(1, idGrupo);
+                p.setString(2, curp);
+                p.executeUpdate();
+            }
+        } catch (Exception e) {
+            System.err.println("[DB]: No se pudo vincular el paciente a su grupo: " + e.getMessage());
+        }
+    }
+
     public static boolean actualizarPaciente(String curpOriginal, String nuevoNombre, String nuevaFechaNac, String nuevoGradoGrupo, String nuevoCurpTutor) {
         if (curpOriginal == null || curpOriginal.isBlank() || nuevoNombre == null || nuevoNombre.isBlank()) return false;
-        String sql = "UPDATE paciente SET nombre = ?, fecha_nacimiento = ?, grado_grupo = ?, curp_tutor = ? WHERE curp = ?";
+        // Con grupo, el grado lo manda el grupo; sin grupo se guarda lo capturado.
+        String sql = "UPDATE paciente SET nombre = ?, fecha_nacimiento = ?, " +
+                "grado_grupo = CASE WHEN id_grupo IS NULL THEN ? ELSE grado_grupo END, curp_tutor = ? WHERE curp = ?";
         try (Connection conn = abrirConexion();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, nuevoNombre.trim());
@@ -282,9 +311,7 @@ public class GestorBaseDatos {
 
     public static PacienteInfo buscarPacientePorCurp(String curp) {
         if (curp == null || curp.trim().isEmpty()) return null;
-        String sql = "SELECT p.curp, p.nombre, p.fecha_nacimiento, p.grado_grupo, p.curp_tutor, " +
-                "t.nombre AS nombre_tutor, t.telefono AS telefono_tutor, t.correo AS correo_tutor " +
-                "FROM paciente p LEFT JOIN tutor t ON p.curp_tutor = t.curp WHERE p.curp = ?";
+        String sql = COLUMNAS_PACIENTE + "WHERE p.curp = ?";
         try (Connection conn = abrirConexion();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, curp.trim().toUpperCase());
@@ -297,6 +324,25 @@ public class GestorBaseDatos {
         return null;
     }
 
+    private static final String COLUMNAS_PACIENTE = "SELECT p.curp, p.nombre, p.fecha_nacimiento, p.grado_grupo, p.curp_tutor, " +
+            "p.id_grupo, p.egresado, t.nombre AS nombre_tutor, t.telefono AS telefono_tutor, t.correo AS correo_tutor " +
+            "FROM paciente p LEFT JOIN tutor t ON p.curp_tutor = t.curp ";
+
+    /** Consulta de pacientes con un WHERE/ORDER BY propio (lo usan los grupos). Parámetros enteros o texto. */
+    static List<PacienteInfo> consultarPacientes(String condicion, Object... parametros) {
+        List<PacienteInfo> lista = new ArrayList<>();
+        try (Connection conn = abrirConexion();
+             PreparedStatement p = conn.prepareStatement(COLUMNAS_PACIENTE + condicion)) {
+            for (int i = 0; i < parametros.length; i++) p.setObject(i + 1, parametros[i]);
+            try (ResultSet rs = p.executeQuery()) {
+                while (rs.next()) lista.add(mapearPaciente(rs));
+            }
+        } catch (Exception e) {
+            System.err.println("[DB ERROR]: No se pudieron consultar los pacientes: " + e.getMessage());
+        }
+        return lista;
+    }
+
     public static List<PacienteInfo> obtenerPacientes(String textoBusqueda) {
         return obtenerPacientes(textoBusqueda, "", "", "", "", "", "");
     }
@@ -304,9 +350,7 @@ public class GestorBaseDatos {
     public static List<PacienteInfo> obtenerPacientes(String general, String curp, String nombre, String grupo, String tutor, String telefono, String correo) {
         List<PacienteInfo> pacientes = new ArrayList<>();
         String filtro = general == null ? "" : general.trim();
-        String sql = "SELECT p.curp, p.nombre, p.fecha_nacimiento, p.grado_grupo, p.curp_tutor, " +
-                "t.nombre AS nombre_tutor, t.telefono AS telefono_tutor, t.correo AS correo_tutor FROM paciente p " +
-                "LEFT JOIN tutor t ON p.curp_tutor = t.curp " +
+        String sql = COLUMNAS_PACIENTE +
                 "WHERE (? = '' OR p.curp LIKE ? OR p.nombre LIKE ? OR p.grado_grupo LIKE ? OR t.nombre LIKE ? OR t.telefono LIKE ? OR t.correo LIKE ?) " +
                 "AND (? = '' OR p.curp LIKE ?) AND (? = '' OR p.nombre LIKE ?) AND (? = '' OR p.grado_grupo LIKE ?) " +
                 "AND (? = '' OR t.nombre LIKE ?) AND (? = '' OR t.telefono LIKE ?) AND (? = '' OR t.correo LIKE ?) " +
@@ -746,6 +790,9 @@ public class GestorBaseDatos {
         info.nombreTutor = rs.getString("nombre_tutor");
         info.telefonoTutor = rs.getString("telefono_tutor");
         info.correoTutor = rs.getString("correo_tutor");
+        int idGrupo = rs.getInt("id_grupo");
+        info.idGrupo = rs.wasNull() ? null : idGrupo;
+        info.egresado = rs.getInt("egresado") == 1;
         return info;
     }
 
@@ -799,6 +846,10 @@ public class GestorBaseDatos {
     public static class PacienteInfo {
         public String curp, nombre, fechaNacimiento, gradoGrupo, curpTutor;
         public String nombreTutor, telefonoTutor, correoTutor;
+        /** Grupo escolar local (null = sin grupo). */
+        public Integer idGrupo;
+        /** Terminó el último grado de su nivel (su grupo egresó). */
+        public boolean egresado;
     }
 
     public static class EvaluacionInfo {
